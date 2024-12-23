@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package CategoryRestaurantProto;
+
+import "api.proto";
+
+
+service CategoryRestaurantServiceGprc {
+  rpc findOneCatRes (ReqFindOneCatRes) returns (api.IBackendGRPC) {}
+  rpc findCatResByArrId (ReqFindCatResByArrId) returns (api.IBackendGRPC) {}
+}
+
+message ReqFindOneCatRes {
+  string id = 1;
+  string catResId = 2;
+}
+
+message CategoryRestaurantModel {
+  string cat_res_id = 1;  
+  string cat_res_name = 2;  
+  string cat_res_slug = 3;  
+  Image cat_res_icon = 4;  
+  string cat_res_short_description = 5; 
+  string cat_res_status = 6;
+  crudBy createdBy = 7;  
+  crudBy updatedBy = 8;  
+  crudBy deletedBy = 9; 
+  string createdAt = 10;  
+  string updatedAt =11; 
+  bool isDeleted = 12; 
+  string deletedAt = 13;
+  
+}
+
+message Image {
+  string image_custom = 1;
+  string image_cloud = 2;
+}
+
+message crudBy {
+  string _id = 1; 
+  string email = 2;
+}
+
+message ReqFindCatResByArrId {
+  repeated string arrIdCatRes = 1;
+  string catResId = 2;
+}
+
+
