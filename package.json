@@ -45,6 +45,8 @@
     "kafkajs": "^2.2.4",
     "md5": "^2.3.0",
     "mysql2": "^3.11.5",
+    "oracledb": "^6.7.1",
+    "pg": "^8.13.1",
     "qs": "^6.13.1",
     "query-string": "^9.1.1",
     "reflect-metadata": "^0.1.13",

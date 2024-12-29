@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common'
-import { FoodRestaurantRepo } from './entity/food-restaurant.repo'
+import { FoodRestaurantRepo } from './entities/food-restaurant.repo'
 import { CreateFoodRestaurantDto } from './dto/create-food-restaurant.dto'
-import { FoodRestaurantEntity } from './entity/food-restaurant.entity'
+import { FoodRestaurantEntity } from './entities/food-restaurant.entity'
 import slugify from 'slugify'
 import { IAccount } from 'src/guard/interface/account.interface'
 import { ResultPagination } from 'src/interface/resultPagination.interface'
@@ -14,14 +14,24 @@ import { firstValueFrom } from 'rxjs'
 import { ICategoryRestaurantModel } from 'src/modelGrpc/category-restaurant.mode'
 import { UpdateFoodRestaurantDto } from './dto/update-food-restaurant.dto'
 import { UpdateStatusFoodRestaurantDto } from './dto/update-status-food-restaurant.dto'
-import { UpdateResult } from 'typeorm'
+import { DataSource, UpdateResult } from 'typeorm'
 import { UpdateStateFoodRestaurantDto } from './dto/update-state-food-restaurant.dto'
 import { saveLogSystem } from 'src/log/sendLog.els'
 import 'dotenv/config'
+import { FoodRestaurantQuery } from './entities/food-restaurant.query'
+import { FoodOptionsRepo } from 'src/food-options/entities/food-options.repo'
+import { FoodOptionsQuery } from 'src/food-options/entities/food-options.query'
+import { FoodOptionsEntity } from 'src/food-options/entities/food-options.entity'
 
 @Injectable()
 export class FoodRestaurantService implements OnModuleInit {
-  constructor(private readonly foodRestaurantRepo: FoodRestaurantRepo) {}
+  constructor(
+    private readonly foodRestaurantRepo: FoodRestaurantRepo,
+    private readonly foodRestaurantQuery: FoodRestaurantQuery,
+    private readonly foodOptionsRepo: FoodOptionsRepo,
+    private readonly foodOptionQuery: FoodOptionsQuery,
+    private readonly dataSource: DataSource
+  ) {}
 
   @Client({
     transport: Transport.GRPC,
@@ -40,17 +50,28 @@ export class FoodRestaurantService implements OnModuleInit {
     )
   }
 
-  async create(data: CreateFoodRestaurantDto, account: IAccount): Promise<FoodRestaurantEntity> {
-    try {
-      const foodExits = await this.foodRestaurantRepo.findOneByName(data.food_name, account.account_restaurant_id)
+  async create(createFoodRestaurantDto: CreateFoodRestaurantDto, account: IAccount): Promise<FoodRestaurantEntity> {
+    const queryRunner = this.dataSource.createQueryRunner()
 
-      if (foodExits) {
-        throw new BadRequestError('Món ăn đã tồn tại')
-      }
+    try {
+      await queryRunner.connect()
+      await queryRunner.startTransaction()
+      const {
+        food_cat_id,
+        food_close_time,
+        food_description,
+        food_image,
+        food_name,
+        food_note,
+        food_open_time,
+        food_options,
+        food_price,
+        food_sort
+      } = createFoodRestaurantDto
 
       const categoryExist: IBackendGRPC = await firstValueFrom(
         (await this.CategoryRestaurantServiceGrpc.findOneCatRes({
-          id: data.food_cat_id,
+          id: food_cat_id,
           catResId: account.account_restaurant_id.toString()
         })) as any
       )
@@ -59,14 +80,46 @@ export class FoodRestaurantService implements OnModuleInit {
         throw new BadRequestError('Danh mục món ăn không tồn tại')
       }
 
-      const slug = slugify(data.food_name)
-      return await this.foodRestaurantRepo.create({
-        ...data,
+      const slug = slugify(createFoodRestaurantDto.food_name, { lower: true, strict: true })
+
+      const newFood = await queryRunner.manager.save(FoodRestaurantEntity, {
+        food_cat_id,
+        food_close_time,
+        food_description,
+        food_image,
+        food_name,
+        food_note,
+        food_open_time,
+        food_price,
+        food_sort,
         food_slug: slug,
         createdBy: account.account_employee_id ? account.account_employee_id : account.account_restaurant_id,
         food_res_id: account.account_restaurant_id
       })
+
+      if (food_options.length !== 0 && newFood.food_id) {
+        await Promise.all(
+          food_options.map((option) =>
+            queryRunner.manager.save(FoodOptionsEntity, {
+              fopt_food_id: newFood.food_id,
+              fopt_image: option.fopt_image,
+              fopt_name: option.fopt_name,
+              fopt_price: option.fopt_price,
+              fopt_attribute: option.fopt_attribute,
+              fopt_note: option.fopt_note,
+              fopt_state: option.fopt_state,
+              fopt_status: option.fopt_status,
+              fopt_res_id: account.account_restaurant_id,
+              createdBy: account.account_employee_id ? account.account_employee_id : account.account_restaurant_id
+            })
+          )
+        )
+      }
+
+      await queryRunner.commitTransaction()
+      return newFood
     } catch (error) {
+      await queryRunner.rollbackTransaction()
       saveLogSystem({
         action: 'create',
         class: 'FoodRestaurantService',
@@ -77,6 +130,8 @@ export class FoodRestaurantService implements OnModuleInit {
         type: 'error'
       })
       throw new ServerErrorDefault(error)
+    } finally {
+      await queryRunner.release()
     }
   }
 
@@ -91,7 +146,7 @@ export class FoodRestaurantService implements OnModuleInit {
       food_name: string
     },
     account: IAccount
-  ): Promise<ResultPagination<FoodRestaurantEntity[]>> {
+  ): Promise<ResultPagination<FoodRestaurantEntity>> {
     try {
       if (!food_name && typeof food_name !== 'string') {
         throw new BadRequestError('Món ăn không tồn tại, vui lòng thử lại sau ít phút')
@@ -100,7 +155,22 @@ export class FoodRestaurantService implements OnModuleInit {
       pageIndex = isNaN(pageIndex) ? 0 : pageIndex
       pageSize = isNaN(pageSize) ? 10 : pageSize
 
-      const dataFood = await this.foodRestaurantRepo.findAll({ pageSize, pageIndex, food_name, isDeleted: 0 }, account)
+      const dataFood = await this.foodRestaurantQuery.findAllPagination(
+        { pageSize, pageIndex, food_name, isDeleted: 0 },
+        account
+      )
+
+      if (!dataFood?.result.length) {
+        return {
+          meta: {
+            current: pageIndex,
+            pageSize,
+            totalPage: 0,
+            totalItem: 0
+          },
+          result: []
+        }
+      }
 
       const arrCatResId = dataFood.result.map((item) => item.food_cat_id)
       const uniqueArrCatResId = [...new Set(arrCatResId)]
@@ -152,7 +222,7 @@ export class FoodRestaurantService implements OnModuleInit {
       food_name: string
     },
     account: IAccount
-  ): Promise<ResultPagination<FoodRestaurantEntity[]>> {
+  ): Promise<ResultPagination<FoodRestaurantEntity>> {
     try {
       if (!food_name && typeof food_name !== 'string') {
         throw new BadRequestError('Món ăn không tồn tại, vui lòng thử lại sau ít phút')
@@ -161,7 +231,22 @@ export class FoodRestaurantService implements OnModuleInit {
       pageIndex = isNaN(pageIndex) ? 0 : pageIndex
       pageSize = isNaN(pageSize) ? 10 : pageSize
 
-      const dataFood = await this.foodRestaurantRepo.findAll({ pageSize, pageIndex, food_name, isDeleted: 1 }, account)
+      const dataFood = await this.foodRestaurantQuery.findAllPagination(
+        { pageSize, pageIndex, food_name, isDeleted: 1 },
+        account
+      )
+
+      if (!dataFood?.result.length) {
+        return {
+          meta: {
+            current: pageIndex,
+            pageSize,
+            totalPage: 0,
+            totalItem: 0
+          },
+          result: []
+        }
+      }
 
       const arrCatResId = dataFood.result.map((item) => item.food_cat_id)
       const uniqueArrCatResId = [...new Set(arrCatResId)]
@@ -202,9 +287,9 @@ export class FoodRestaurantService implements OnModuleInit {
     }
   }
 
-  async findOne(id: string, account: IAccount): Promise<FoodRestaurantEntity> {
+  async findOne(id: string, account: IAccount): Promise<FoodRestaurantEntity & { food_options: FoodOptionsEntity[] }> {
     try {
-      const data = await this.foodRestaurantRepo.findOne(id, account)
+      const data = await this.foodRestaurantQuery.findOne(id, account)
 
       if (!data) {
         throw new BadRequestError('Món ăn không tồn tại')
@@ -218,21 +303,17 @@ export class FoodRestaurantService implements OnModuleInit {
       )
 
       if (!categoryExist.status) {
-        saveLogSystem({
-          action: 'findOne',
-          class: 'FoodRestaurantService',
-          function: 'findOne',
-          message: 'Danh mục món ăn không tồn tại',
-          time: new Date(),
-          error: new Error('Danh mục món ăn không tồn tại'),
-          type: 'error'
-        })
         throw new BadRequestError('Danh mục món ăn không tồn tại')
       }
 
       data.food_cat_id = JSON.parse(categoryExist.data)
 
-      return data
+      const food_options = await this.foodOptionQuery.findOptionByIdFood(id, account.account_restaurant_id)
+
+      return {
+        ...data,
+        food_options
+      }
     } catch (error) {
       saveLogSystem({
         action: 'findOne',
@@ -248,7 +329,11 @@ export class FoodRestaurantService implements OnModuleInit {
   }
 
   async update(updateFoodRestaurantDto: UpdateFoodRestaurantDto, account: IAccount): Promise<UpdateResult> {
+    const queryRunner = this.dataSource.createQueryRunner()
+
     try {
+      await queryRunner.connect()
+      await queryRunner.startTransaction()
       const {
         food_id,
         food_cat_id,
@@ -259,10 +344,11 @@ export class FoodRestaurantService implements OnModuleInit {
         food_name,
         food_note,
         food_price,
-        food_sort
+        food_sort,
+        food_options
       } = updateFoodRestaurantDto
 
-      const foodExits = await this.foodRestaurantRepo.findOne(food_id, account)
+      const foodExits = await this.foodRestaurantQuery.findOne(food_id, account)
       if (!foodExits) {
         throw new BadRequestError('Món ăn không tồn tại')
       }
@@ -278,21 +364,63 @@ export class FoodRestaurantService implements OnModuleInit {
         throw new BadRequestError('Danh mục món ăn không tồn tại')
       }
 
-      return await this.foodRestaurantRepo.update({
-        food_id: food_id,
-        food_res_id: account.account_restaurant_id,
-        food_cat_id: food_cat_id,
-        food_description: food_description,
-        food_image: food_image,
-        food_name: food_name,
-        food_note: food_note,
-        food_price: food_price,
-        food_sort: food_sort,
-        food_open_time: food_open_time,
-        food_close_time: food_close_time,
-        updatedBy: account.account_employee_id ? account.account_employee_id : account.account_restaurant_id
-      })
+      const listOptionOld = await this.foodOptionQuery.findOptionByIdFood(food_id, account.account_restaurant_id)
+
+      if (food_options.length !== 0 && listOptionOld.length !== 0) {
+        await Promise.all(
+          listOptionOld.map((option) =>
+            queryRunner.manager.remove(FoodOptionsEntity, {
+              fopt_id: option.fopt_id
+            })
+          )
+        )
+
+        await Promise.all(
+          food_options.map((option) =>
+            queryRunner.manager.save(FoodOptionsEntity, {
+              fopt_food_id: food_id,
+              fopt_image: option.fopt_image,
+              fopt_name: option.fopt_name,
+              fopt_price: option.fopt_price,
+              fopt_attribute: option.fopt_attribute,
+              fopt_note: option.fopt_note,
+              fopt_state: option.fopt_state,
+              fopt_status: option.fopt_status,
+              fopt_res_id: account.account_restaurant_id,
+              createdBy: account.account_employee_id ? account.account_employee_id : account.account_restaurant_id
+            })
+          )
+        )
+      }
+
+      const updated = await queryRunner.manager
+        .createQueryBuilder()
+        .update(FoodRestaurantEntity)
+        .set({
+          food_id: food_id,
+          food_res_id: account.account_restaurant_id,
+          food_cat_id: food_cat_id,
+          food_description: food_description,
+          food_image: food_image,
+          food_name: food_name,
+          food_note: food_note,
+          food_price: food_price,
+          food_sort: food_sort,
+          food_open_time: food_open_time,
+          food_close_time: food_close_time,
+          updatedBy: account.account_employee_id ? account.account_employee_id : account.account_restaurant_id,
+          updatedAt: new Date()
+        })
+        .where({
+          food_id: food_id,
+          food_res_id: account.account_restaurant_id
+        })
+        .execute()
+
+      await queryRunner.commitTransaction()
+      return updated
     } catch (error) {
+      await queryRunner.rollbackTransaction()
       saveLogSystem({
         action: 'update',
         class: 'FoodRestaurantService',
@@ -303,6 +431,8 @@ export class FoodRestaurantService implements OnModuleInit {
         type: 'error'
       })
       throw new ServerErrorDefault(error)
+    } finally {
+      await queryRunner.release()
     }
   }
 
@@ -313,7 +443,7 @@ export class FoodRestaurantService implements OnModuleInit {
     try {
       const { food_id, food_status } = updateStatusFoodRestaurantDto
 
-      const foodExits = await this.foodRestaurantRepo.findOne(food_id, account)
+      const foodExits = await this.foodRestaurantQuery.findOne(food_id, account)
       if (!foodExits) {
         throw new BadRequestError('Món ăn không tồn tại')
       }
@@ -345,7 +475,7 @@ export class FoodRestaurantService implements OnModuleInit {
     try {
       const { food_id, food_state } = updateStateFoodRestaurantDto
 
-      const foodExits = await this.foodRestaurantRepo.findOne(food_id, account)
+      const foodExits = await this.foodRestaurantQuery.findOne(food_id, account)
       if (!foodExits) {
         throw new BadRequestError('Món ăn không tồn tại')
       }
@@ -372,7 +502,7 @@ export class FoodRestaurantService implements OnModuleInit {
 
   async remove(id: string, account: IAccount): Promise<UpdateResult> {
     try {
-      const foodExits = await this.foodRestaurantRepo.findOne(id, account)
+      const foodExits = await this.foodRestaurantQuery.findOne(id, account)
       if (!foodExits) {
         throw new BadRequestError('Món ăn không tồn tại')
       }
@@ -398,7 +528,7 @@ export class FoodRestaurantService implements OnModuleInit {
 
   async restore(id: string, account: IAccount): Promise<UpdateResult> {
     try {
-      const foodExits = await this.foodRestaurantRepo.findOne(id, account)
+      const foodExits = await this.foodRestaurantQuery.findOne(id, account)
       if (!foodExits) {
         throw new BadRequestError('Món ăn không tồn tại')
       }
@@ -413,6 +543,24 @@ export class FoodRestaurantService implements OnModuleInit {
         action: 'restore',
         class: 'FoodRestaurantService',
         function: 'restore',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async findFoodName(account: IAccount): Promise<FoodRestaurantEntity[]> {
+    try {
+      const data = await this.foodRestaurantQuery.findFoodName(account)
+      return data
+    } catch (error) {
+      saveLogSystem({
+        action: 'findFoodName',
+        class: 'FoodRestaurantService',
+        function: 'findFoodName',
         message: error.message,
         time: new Date(),
         error: error,

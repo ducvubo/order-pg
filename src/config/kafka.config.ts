@@ -1,7 +1,6 @@
 import 'dotenv/config'
 import { Kafka } from 'kafkajs'
-import * as fs from 'fs-extra'
-import 'dotenv/config'
+import * as fs from 'fs'
 
 const handleEventConnection = async ({ connectionKafka }: { connectionKafka: any }) => {
   try {
@@ -15,7 +14,7 @@ const handleEventConnection = async ({ connectionKafka }: { connectionKafka: any
 }
 export const initKafka = () => {
   const instanceKafka = new Kafka({
-    clientId: 'my-app',
+    clientId: 'order-service',
     brokers: [process.env.BROKER_KAFKA as string],
     ssl: {
       key: Buffer.from(fs.readFileSync('src/config/keypem/service.key')),

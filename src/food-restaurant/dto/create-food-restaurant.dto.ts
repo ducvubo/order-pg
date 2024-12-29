@@ -1,4 +1,16 @@
-import { IsNotEmpty, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator'
+import { Type } from 'class-transformer'
+import {
+  IsArray,
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  MinLength,
+  ValidateNested
+} from 'class-validator'
 
 export class CreateFoodRestaurantDto {
   @IsNotEmpty({ message: 'Id danh mục không được để trống' })
@@ -38,4 +50,40 @@ export class CreateFoodRestaurantDto {
   @IsNotEmpty({ message: 'Thời gian đóng cửa không được để trống' })
   @IsString({ message: 'Thời gian đóng cửa phải là chuỗi' })
   food_close_time: string
+
+  @IsArray({ message: 'Danh sách lựa chọn phải là một mảng' })
+  @ValidateNested({ each: true })
+  @Type(() => FoodOptions)
+  food_options: FoodOptions[]
+}
+
+export class FoodOptions {
+  @IsNotEmpty({ message: 'Tên lựa chọn không được để trống' })
+  @IsString({ message: 'Tên lựa chọn phải là chuỗi' })
+  fopt_name: string
+
+  @IsNotEmpty({ message: 'Giá lựa chọn không được để trống' })
+  @IsNumber({}, { message: 'Giá lựa chọn phải là số' })
+  fopt_price: number
+
+  //attribute
+  @IsNotEmpty({ message: 'Thuộc tính không được để trống' })
+  @IsString({ message: 'Thuộc tính phải là chuỗi' })
+  fopt_attribute: string
+
+  @IsNotEmpty({ message: 'Ảnh lựa không được để trống' })
+  @IsString({ message: 'Ảnh lựa chọn phải là chuỗi' })
+  fopt_image: string
+
+  @IsNotEmpty({ message: 'Trạng thái không được để trống' })
+  @IsIn(['enable', 'disable'], { message: 'Trạng thái phải là "enable", "disable"' })
+  fopt_status: 'enable' | 'disable'
+
+  @IsNotEmpty({ message: 'Trạng thái không được để trống' })
+  @IsIn(['soldOut', 'inStock', 'almostOut'], { message: 'State phải là "soldOut", "inStock", almostOut"' })
+  fopt_state: 'soldOut' | 'inStock' | 'almostOut'
+
+  @IsNotEmpty({ message: 'Ghi chú không được để trống' })
+  @IsString({ message: 'Ghi chú phải là chuỗi' })
+  fopt_note: string
 }

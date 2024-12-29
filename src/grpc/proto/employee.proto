@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package EmployeeProto;
+
+import "api.proto";
+
+
+service EmployeeServiceGprc {
+  rpc findOneEmployeeById (ReqFindOneEmployById) returns (api.IBackendGRPC) {}
+}
+
+message ReqFindOneEmployById {
+    string id = 1;
+    string eplResId = 2;
+}
+
+
+

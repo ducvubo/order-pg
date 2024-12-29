@@ -5,5 +5,5 @@ export interface ResultPagination<T> {
     totalPage: number
     totalItem: number
   }
-  result?: T
+  result?: T[]
 }

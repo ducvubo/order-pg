@@ -9,8 +9,9 @@ import { join } from 'path'
 import { initRedis } from './config/redis.config'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { AllExceptionsFilter } from './interceptor/exception.interceptor'
-import { initOpenSearch } from './config/open-search.config'
+// import { initOpenSearch } from './config/open-search.config'
 import { initKafka } from './config/kafka.config'
+import { initElasticsearch } from './config/elasticsearch.config'
 declare const module: any
 
 async function bootstrap() {
@@ -23,11 +24,11 @@ async function bootstrap() {
   const reflector = app.get(Reflector)
 
   initRedis()
-  // initElasticsearch()
-  initOpenSearch()
+  initElasticsearch()
+  // initOpenSearch()
   initKafka()
 
-  // await addDocToOpenSearch('test', '1', { name: 'test' })
+  // await addDocToElasticsearch('test', '1', { name: 'test' })
 
   app.useGlobalInterceptors(new TransformIntercaptor(reflector))
   app.useGlobalInterceptors(new IdUserGuestInterceptor(reflector))

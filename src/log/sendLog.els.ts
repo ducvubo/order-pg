@@ -1,10 +1,10 @@
 // import { getElasticsearch } from '../config/elasticsearch.config'
-import { getOpenSearch } from 'src/config/open-search.config'
+import { getElasticsearch } from 'src/config/elasticsearch.config'
 import { ILogApiError, ILogApiSuccess, ILogSystem } from './log.interface'
 import { v4 as uuidv4 } from 'uuid'
 // const elasticsearch = getElasticsearch().instanceConnect
 
-const openSearch = getOpenSearch().instanceConnect
+const elasticSearch = getElasticsearch().instanceConnect
 
 const INDEX_SYSTEM_LOG = 'system-log-order-pg'
 const INDEX_LOG_API_SUCCESS = 'log-api-success-order-pg'
@@ -12,7 +12,7 @@ const INDEX_LOG_API_ERROR = 'log-api-error-order-pg'
 
 export const saveLogSystem = (data: ILogSystem) => {
   try {
-    openSearch.index({
+    elasticSearch.index({
       index: INDEX_SYSTEM_LOG,
       id: uuidv4(),
       body: { ...data, time: formatDate(data.time) }
@@ -24,7 +24,7 @@ export const saveLogSystem = (data: ILogSystem) => {
 
 export const saveLogApiSuccess = (data: ILogApiSuccess) => {
   try {
-    openSearch.index({
+    elasticSearch.index({
       index: INDEX_LOG_API_SUCCESS,
       id: uuidv4(),
       body: data
@@ -36,7 +36,7 @@ export const saveLogApiSuccess = (data: ILogApiSuccess) => {
 
 export const saveLogApiError = (data: ILogApiError) => {
   try {
-    openSearch.index({
+    elasticSearch.index({
       index: INDEX_LOG_API_ERROR,
       id: uuidv4(),
       body: data

@@ -5,32 +5,36 @@ import { AppService } from './app.service'
 import { ConfigModule } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { FoodRestaurantModule } from './food-restaurant/food-restaurant.module'
-import { FoodRestaurantEntity, FoodRestaurantSubscriber } from './food-restaurant/entity/food-restaurant.entity'
-import { KafkaModule } from './kafka/kafka.module'
-import { WorkingShiftModule } from './working-shift/working-shift.module'
-import { WorkingShiftEntity, WorkingShiftSubscriber } from './working-shift/entity/working-shift.entity'
-import { ShiftAssignmentsModule } from './shift-assignments/shift-assignments.module'
-import { ShiftAssignmentEntity, ShiftAssignmentSubscriber } from './shift-assignments/entity/shift-assignments.entity'
+import { FoodRestaurantEntity, FoodRestaurantSubscriber } from './food-restaurant/entities/food-restaurant.entity'
+import { ComboFoodResModule } from './combo-food-res/combo-food-res.module'
+import { FoodComboItemsModule } from './food-combo-items/food-combo-items.module'
+import { FoodComboItemsEntity, FoodComboItemsSubscriber } from './food-combo-items/entities/food-combo-items.entity'
+import { FoodComboResEntity, FoodComboResSubscriber } from './combo-food-res/entities/combo-food-res.entity'
+import { FoodOptionsModule } from './food-options/food-options.module'
+import { FoodOptionsEntity, FoodOptionsSubscriber } from './food-options/entities/food-options.entity'
+import { ProgramPromotionModule } from './program-promotion/program-promotion.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true
     }),
     TypeOrmModule.forRoot({
-      type: 'mysql',
-      host: 'mysql-39588c9a-vminhduc8-88ed.a.aivencloud.com',
-      port: 13890,
-      username: 'avnadmin',
-      password: 'AVNS_nejNZ1u-tCiAtEqOUdh',
-      database: 'OrderPG',
-      entities: [FoodRestaurantEntity, WorkingShiftEntity, ShiftAssignmentEntity],
-      subscribers: [FoodRestaurantSubscriber, WorkingShiftSubscriber, ShiftAssignmentSubscriber],
+      type: 'oracle',
+      host: '223.130.11.174',
+      port: 1521,
+      username: 'OrderPG',
+      password: 'Duc17052003*',
+      serviceName: 'ORCLPDB1',
+      entities: [FoodRestaurantEntity, FoodComboItemsEntity, FoodComboResEntity, FoodOptionsEntity],
+      subscribers: [FoodRestaurantSubscriber, FoodComboResSubscriber, FoodComboItemsSubscriber, FoodOptionsSubscriber],
       synchronize: true
     }),
     FoodRestaurantModule,
-    KafkaModule,
-    WorkingShiftModule,
-    ShiftAssignmentsModule
+    ComboFoodResModule,
+    FoodComboItemsModule,
+    FoodOptionsModule,
+    ProgramPromotionModule
   ],
   controllers: [AppController],
   providers: [AppService]

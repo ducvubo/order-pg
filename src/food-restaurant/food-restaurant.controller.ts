@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } f
 import { FoodRestaurantService } from './food-restaurant.service'
 import { Acccount, ResponseMessage } from 'src/decorator/customize'
 import { CreateFoodRestaurantDto } from './dto/create-food-restaurant.dto'
-import { FoodRestaurantEntity } from './entity/food-restaurant.entity'
+import { FoodRestaurantEntity } from './entities/food-restaurant.entity'
 import { AccountAuthGuard } from 'src/guard/account.guard'
 import { IAccount } from 'src/guard/interface/account.interface'
 import { ResultPagination } from 'src/interface/resultPagination.interface'
@@ -33,7 +33,7 @@ export class FoodRestaurantController {
     @Query('pageSize') pageSize: string,
     @Query('food_name') food_name: string,
     @Acccount() account: IAccount
-  ): Promise<ResultPagination<FoodRestaurantEntity[]>> {
+  ): Promise<ResultPagination<FoodRestaurantEntity>> {
     return await this.foodRestaurantService.findAll({ food_name, pageSize: +pageSize, pageIndex: +pageIndex }, account)
   }
 
@@ -47,6 +47,13 @@ export class FoodRestaurantController {
     return await this.foodRestaurantService.update(updateFoodRestaurantDto, account)
   }
 
+  @Get('/food-name')
+  @ResponseMessage('Lấy danh sách tên món ăn thành công')
+  @UseGuards(AccountAuthGuard)
+  async findFoodName(@Acccount() account: IAccount): Promise<FoodRestaurantEntity[]> {
+    return await this.foodRestaurantService.findFoodName(account)
+  }
+
   @Get('recycle')
   @ResponseMessage('Lấy danh sách món ăn đã xóa thành công')
   @UseGuards(AccountAuthGuard)
@@ -55,7 +62,7 @@ export class FoodRestaurantController {
     @Query('pageSize') pageSize: string,
     @Query('food_name') food_name: string,
     @Acccount() account: IAccount
-  ): Promise<ResultPagination<FoodRestaurantEntity[]>> {
+  ): Promise<ResultPagination<FoodRestaurantEntity>> {
     return await this.foodRestaurantService.findRecycle(
       { food_name, pageSize: +pageSize, pageIndex: +pageIndex },
       account
