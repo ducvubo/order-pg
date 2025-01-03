@@ -12,7 +12,8 @@ import { FoodComboItemsEntity, FoodComboItemsSubscriber } from './food-combo-ite
 import { FoodComboResEntity, FoodComboResSubscriber } from './combo-food-res/entities/combo-food-res.entity'
 import { FoodOptionsModule } from './food-options/food-options.module'
 import { FoodOptionsEntity, FoodOptionsSubscriber } from './food-options/entities/food-options.entity'
-import { ProgramPromotionModule } from './program-promotion/program-promotion.module';
+import { ProgramPromotionModule } from './program-promotion/program-promotion.module'
+import * as fs from 'fs'
 
 @Module({
   imports: [
@@ -20,12 +21,16 @@ import { ProgramPromotionModule } from './program-promotion/program-promotion.mo
       isGlobal: true
     }),
     TypeOrmModule.forRoot({
-      type: 'oracle',
+      type: 'postgres',
       host: '223.130.11.174',
-      port: 1521,
-      username: 'OrderPG',
-      password: 'Duc17052003*',
-      serviceName: 'ORCLPDB1',
+      port: 5432,
+      username: 'myuser',
+      password: 'mypassword',
+      database: 'orderpg',
+      ssl: {
+        rejectUnauthorized: true,
+        ca: Buffer.from(fs.readFileSync('src/config/keypem/ca-pg.pem'))
+      },
       entities: [FoodRestaurantEntity, FoodComboItemsEntity, FoodComboResEntity, FoodOptionsEntity],
       subscribers: [FoodRestaurantSubscriber, FoodComboResSubscriber, FoodComboItemsSubscriber, FoodOptionsSubscriber],
       synchronize: true

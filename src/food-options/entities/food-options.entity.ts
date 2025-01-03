@@ -21,10 +21,10 @@ export class FoodOptionsEntity extends SampleEntity {
   @PrimaryGeneratedColumn('uuid')
   fopt_id?: string = uuidv4()
 
-  @Column('char', { length: 24 })
+  @Column('varchar')
   fopt_res_id?: string
 
-  @Column('char', { length: 36 })
+  @Column('varchar')
   fopt_food_id?: string
 
   @Column('varchar', { length: 255 })
@@ -36,7 +36,7 @@ export class FoodOptionsEntity extends SampleEntity {
   @Column('int', { default: 0 })
   fopt_price?: number
 
-  @Column('clob')
+  @Column('text')
   fopt_image?: string
 
   @Column('varchar', { length: 255, default: 'enable' })

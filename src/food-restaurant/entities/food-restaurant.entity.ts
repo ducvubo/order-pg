@@ -20,10 +20,10 @@ export class FoodRestaurantEntity extends SampleEntity {
   @PrimaryGeneratedColumn('uuid')
   food_id?: string = uuidv4()
 
-  @Column('char', { length: 24 })
+  @Column('varchar', { length: 24 })
   food_res_id?: string
 
-  @Column('char', { length: 24 })
+  @Column('varchar', { length: 24 })
   food_cat_id?: string
 
   @Column('varchar', { length: 255 })
@@ -32,13 +32,13 @@ export class FoodRestaurantEntity extends SampleEntity {
   @Column('varchar', { length: 255 })
   food_slug?: string
 
-  @Column('clob')
+  @Column('text')
   food_description?: string
 
-  @Column('number')
+  @Column('bigint')
   food_price?: number
 
-  @Column('clob')
+  @Column('text')
   food_image?: string
 
   @Column('varchar', { length: 255, default: 'enable' })
@@ -56,7 +56,7 @@ export class FoodRestaurantEntity extends SampleEntity {
   @Column('varchar', { length: 255 })
   food_note?: string
 
-  @Column('number')
+  @Column('bigint')
   food_sort?: number
 
   @OneToMany(() => FoodComboItemsEntity, (item) => item.fcbi_food, { cascade: true })

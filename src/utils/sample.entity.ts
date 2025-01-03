@@ -13,12 +13,12 @@ export class SampleEntity {
   @Column({ type: 'int', default: 0 }) // 0: chưa xóa, 1: đã xóa
   isDeleted?: 0 | 1
 
-  @Column('char', { length: 36, nullable: true })
+  @Column('varchar', { length: 36, nullable: true })
   createdBy?: string
 
-  @Column('char', { length: 36, nullable: true })
+  @Column('varchar', { length: 36, nullable: true })
   updatedBy?: string
 
-  @Column('char', { length: 36, nullable: true })
+  @Column('varchar', { length: 36, nullable: true })
   deletedBy?: string
 }

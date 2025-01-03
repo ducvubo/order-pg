@@ -19,7 +19,7 @@ export class FoodComboResEntity extends SampleEntity {
   @PrimaryGeneratedColumn('uuid')
   fcb_id?: string = uuidv4()
 
-  @Column('char', { length: 24 })
+  @Column('varchar', { length: 24 })
   fcb_res_id?: string
 
   @Column('varchar', { length: 255 })
@@ -28,13 +28,13 @@ export class FoodComboResEntity extends SampleEntity {
   @Column('varchar', { length: 255 })
   fcb_slug?: string
 
-  @Column('clob')
+  @Column('text')
   fcb_description?: string
 
-  @Column('number')
+  @Column('bigint')
   fcb_price?: number
 
-  @Column('clob')
+  @Column('text')
   fcb_image?: string
 
   @Column('varchar', { length: 255, default: 'enable' })
@@ -52,7 +52,7 @@ export class FoodComboResEntity extends SampleEntity {
   @Column('varchar', { length: 255 })
   fcb_note?: string
 
-  @Column('number')
+  @Column('bigint')
   fcb_sort?: number
 
   @OneToMany(() => FoodComboItemsEntity, (item) => item.fcbi_combo, { cascade: true })

@@ -22,13 +22,13 @@ export class FoodComboItemsEntity extends SampleEntity {
   @PrimaryGeneratedColumn('uuid')
   fcbi_id?: string = uuidv4()
 
-  @Column('char', { length: 24 })
+  @Column('varchar')
   fcbi_res_id?: string
 
-  @Column('char', { length: 36 })
+  @Column('varchar')
   fcbi_food_id?: string
 
-  @Column('char', { length: 36 })
+  @Column('varchar')
   fcbi_combo_id?: string
 
   @Column('int')
