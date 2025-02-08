@@ -30,7 +30,7 @@ deploy:
     - docker network inspect backend_qlnh_network || docker network create backend_qlnh_network
     - docker pull $DOCKER_IMAGE
     - docker rm -f $DOCKER_CONTAINER
-    - docker run -d --name $DOCKER_CONTAINER -p 8000:8000 -p 5001:5001 --network backend_qlnh_network $DOCKER_IMAGE
+    - docker run -d --name $DOCKER_CONTAINER -p 7000:7000 --network backend_qlnh_network $DOCKER_IMAGE
   tags:
     - vuducb
   only:
