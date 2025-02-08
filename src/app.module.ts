@@ -13,6 +13,7 @@ import { FoodComboResEntity, FoodComboResSubscriber } from './combo-food-res/ent
 import { FoodOptionsModule } from './food-options/food-options.module'
 import { FoodOptionsEntity, FoodOptionsSubscriber } from './food-options/entities/food-options.entity'
 import { ProgramPromotionModule } from './program-promotion/program-promotion.module'
+import { UploadModule } from './upload/upload.module'
 import * as fs from 'fs'
 
 @Module({
@@ -21,16 +22,29 @@ import * as fs from 'fs'
       isGlobal: true
     }),
     TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: '223.130.11.174',
-      port: 5432,
-      username: 'myuser',
-      password: 'mypassword',
-      database: 'orderpg',
-      ssl: {
-        rejectUnauthorized: true,
-        ca: Buffer.from(fs.readFileSync('src/config/keypem/ca-pg.pem'))
-      },
+      // type: 'postgres',
+      // host: 'localhost',
+      // port: 5432,
+      // username: 'postgres',
+      // password: 'postgres',
+      // database: 'development_database',
+
+      // type: 'postgres',
+      // host: 'pg-102d6f8e-vminhduc8-88ed.h.aivencloud.com',
+      // port: 13890,
+      // username: 'avnadmin',
+      // password: 'AVNS_1OsX3Ol7nY47D5aQUuK',
+      // database: 'orderpg',
+      // ssl: {
+      //   rejectUnauthorized: true,
+      //   ca: Buffer.from(fs.readFileSync('src/config/keypem/ca-pg.pem'))
+      // },
+      type: 'oracle',
+      host: '160.191.51.57',
+      port: 1521,
+      username: 'OrderPG',
+      password: 'Duc17052003*',
+      serviceName: 'ORCLPDB1',
       entities: [FoodRestaurantEntity, FoodComboItemsEntity, FoodComboResEntity, FoodOptionsEntity],
       subscribers: [FoodRestaurantSubscriber, FoodComboResSubscriber, FoodComboItemsSubscriber, FoodOptionsSubscriber],
       synchronize: true
@@ -39,7 +53,8 @@ import * as fs from 'fs'
     ComboFoodResModule,
     FoodComboItemsModule,
     FoodOptionsModule,
-    ProgramPromotionModule
+    ProgramPromotionModule,
+    UploadModule
   ],
   controllers: [AppController],
   providers: [AppService]

@@ -48,9 +48,59 @@ export class FoodOptionsQuery {
       return result.hits?.hits.map((item: any) => item._source) || []
     } catch (error) {
       saveLogSystem({
-        action: 'FindByComboId',
+        action: 'findOptionByIdFood',
         class: 'FoodComboItemsQuery',
-        function: 'FindByComboId',
+        function: 'findOptionByIdFood',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async findOptionByIdFoodByInfor(fopt_food_id: string, fopt_res_id: string): Promise<FoodOptionsEntity[]> {
+    try {
+      const indexExist = await indexElasticsearchExists(FOOD_OPTIONS_ELASTICSEARCH_INDEX)
+
+      if (!indexExist) {
+        return []
+      }
+      const result = await this.elasticSearch.search({
+        index: FOOD_OPTIONS_ELASTICSEARCH_INDEX,
+        body: {
+          query: {
+            bool: {
+              must: [
+                {
+                  match: {
+                    fopt_food_id: {
+                      query: fopt_food_id,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    fopt_res_id: {
+                      query: fopt_res_id,
+                      operator: 'and'
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      })
+
+      return result.hits?.hits.map((item: any) => item._source) || []
+    } catch (error) {
+      saveLogSystem({
+        action: 'findOptionByIdFoodByInfor',
+        class: 'FoodComboItemsQuery',
+        function: 'findOptionByIdFoodByInfor',
         message: error.message,
         time: new Date(),
         error: error,

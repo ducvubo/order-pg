@@ -15,7 +15,7 @@ export const saveLogSystem = (data: ILogSystem) => {
     elasticSearch.index({
       index: INDEX_SYSTEM_LOG,
       id: uuidv4(),
-      body: { ...data, time: formatDate(data.time) }
+      body: { ...data, time: formatDate(data.time), error: JSON.stringify(data.error) }
     })
   } catch (error) {
     throw new Error(error.message)

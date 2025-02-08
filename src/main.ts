@@ -12,7 +12,7 @@ import { AllExceptionsFilter } from './interceptor/exception.interceptor'
 // import { initOpenSearch } from './config/open-search.config'
 import { initKafka } from './config/kafka.config'
 import { initElasticsearch } from './config/elasticsearch.config'
-declare const module: any
+import { initMinio } from './config/minio.config'
 
 async function bootstrap() {
   // const app = await NestFactory.create(AppModule)
@@ -27,12 +27,13 @@ async function bootstrap() {
   initElasticsearch()
   // initOpenSearch()
   initKafka()
+  initMinio()
 
   // await addDocToElasticsearch('test', '1', { name: 'test' })
 
   app.useGlobalInterceptors(new TransformIntercaptor(reflector))
   app.useGlobalInterceptors(new IdUserGuestInterceptor(reflector))
-  app.useGlobalFilters(new AllExceptionsFilter())
+  // app.useGlobalFilters(new AllExceptionsFilter())
 
   app.useStaticAssets(join(__dirname, '..', 'public'))
   app.setBaseViewsDir(join(__dirname, '..', 'views'))
@@ -57,10 +58,5 @@ async function bootstrap() {
 
   await app.startAllMicroservices()
   await app.listen(configService.get<string>('PORT'))
-
-  if (module.hot) {
-    module.hot.accept()
-    module.hot.dispose(() => app.close())
-  }
 }
 bootstrap()

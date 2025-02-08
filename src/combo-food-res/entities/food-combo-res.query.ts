@@ -75,7 +75,15 @@ export class FoodComboResQuery {
       const indexExist = await indexElasticsearchExists(FOOD_COMBO_RES_ELASTICSEARCH_INDEX)
 
       if (!indexExist) {
-        return null
+        return {
+          meta: {
+            current: pageIndex,
+            pageSize,
+            totalPage: 0,
+            totalItem: 0
+          },
+          result: []
+        }
       }
 
       const from = (pageIndex - 1) * pageSize

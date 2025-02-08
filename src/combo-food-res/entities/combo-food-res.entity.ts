@@ -28,13 +28,13 @@ export class FoodComboResEntity extends SampleEntity {
   @Column('varchar', { length: 255 })
   fcb_slug?: string
 
-  @Column('text')
+  @Column('clob')
   fcb_description?: string
 
-  @Column('bigint')
+  @Column('number')
   fcb_price?: number
 
-  @Column('text')
+  @Column('clob')
   fcb_image?: string
 
   @Column('varchar', { length: 255, default: 'enable' })
@@ -52,7 +52,7 @@ export class FoodComboResEntity extends SampleEntity {
   @Column('varchar', { length: 255 })
   fcb_note?: string
 
-  @Column('bigint')
+  @Column('number')
   fcb_sort?: number
 
   @OneToMany(() => FoodComboItemsEntity, (item) => item.fcbi_combo, { cascade: true })

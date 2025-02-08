@@ -32,4 +32,14 @@ export const SHIFT_ASSIGNMENT_ELASTICHSEARCH_INDEX = 'shift-assignment'
 
 export const NOTIFICATION_EMPLOYEE_ELASTICSEARCH_INDEX = 'notification-employee'
 
+export const SUPPLIER_ELASTICSEARCH_INDEX = 'suppliers'
+export const CAT_INGREDIENT_ELASTICSEARCH_INDEX = 'cat-ingredients'
+export const UNIT_ELASTICSEARCH_INDEX = 'units'
+export const UNIT_CONVERSION_ELASTICSEARCH_INDEX = 'unit-conversion'
+export const INGREDIENT_ELASTICSEARCH_INDEX = 'ingredients'
+export const STOCK_IN_ELASTICSEARCH_INDEX = 'stock-in'
+export const STOCK_IN_ITEM_ELASTICSEARCH_INDEX = 'stock-in-item'
+export const STOCK_OUT_ELASTICSEARCH_INDEX = 'stock-out'
+export const STOCK_OUT_ITEM_ELASTICSEARCH_INDEX = 'stock-out-item'
+
 export const PATH_SYSTEM_ELASTICSEARCH_INDEX = 'path-system'

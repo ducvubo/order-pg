@@ -1,0 +1,31 @@
+name: Push to GitLab
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  push_to_gitlab:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      - name: Fetch full history (unshallow)
+        run: git fetch --unshallow
+
+      - name: Set up Git
+        run: |
+          git config user.name "ducvubo"
+          git config user.email "vminhduc8@gmail.com"
+
+      - name: Update GitLab remote URL
+        run: |
+          git remote set-url origin http://gitlab.taphoaictu.id.vn:8929/root/qlnh.git
+          git branch -M main
+
+      - name: Push to GitLab
+        run: |
+          git push -uf http://oauth2:glpat-ZFw1AwWgGLgtaT1_i2AA@gitlab.taphoaictu.id.vn:8929/root/qlnh.git main

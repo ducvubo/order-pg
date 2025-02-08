@@ -76,7 +76,15 @@ export class FoodRestaurantQuery {
       const indexExist = await indexElasticsearchExists(FOOD_RESTAURANT_ELASTICSEARCH_INDEX)
 
       if (!indexExist) {
-        return null
+        return {
+          meta: {
+            current: pageIndex,
+            pageSize,
+            totalPage: 0,
+            totalItem: 0
+          },
+          result: []
+        }
       }
 
       const from = (pageIndex - 1) * pageSize
@@ -258,6 +266,40 @@ export class FoodRestaurantQuery {
         action: 'findOne',
         class: 'FoodRestaurantQuery',
         function: 'findOne',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async findFoodRestaurants(food_res_id: string): Promise<FoodRestaurantEntity[]> {
+    try {
+      const indexExist = await indexElasticsearchExists(FOOD_RESTAURANT_ELASTICSEARCH_INDEX)
+
+      if (!indexExist) {
+        return null
+      }
+
+      const result = await this.elasticSearch.search({
+        index: FOOD_RESTAURANT_ELASTICSEARCH_INDEX,
+        body: {
+          query: {
+            match: {
+              food_res_id
+            }
+          }
+        }
+      })
+
+      return result.hits?.hits.map((hit) => hit._source) || []
+    } catch (error) {
+      saveLogSystem({
+        action: 'findFoodRestaurants',
+        class: 'FoodRestaurantQuery',
+        function: 'findFoodRestaurants',
         message: error.message,
         time: new Date(),
         error: error,

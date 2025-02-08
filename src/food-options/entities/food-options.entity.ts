@@ -36,7 +36,7 @@ export class FoodOptionsEntity extends SampleEntity {
   @Column('int', { default: 0 })
   fopt_price?: number
 
-  @Column('text')
+  @Column('clob')
   fopt_image?: string
 
   @Column('varchar', { length: 255, default: 'enable' })

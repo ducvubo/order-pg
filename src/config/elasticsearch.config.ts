@@ -14,7 +14,7 @@ const handleEventConnection = async ({ connectionElasticsearch }: { connectionEl
   try {
     const response = await connectionElasticsearch.ping()
     if (response) {
-      console.log('connection elasticsearch - Connection status: connected')
+      console.log('connection Elasticsearch - Connection status: connected')
     }
   } catch (error) {
     console.log('Error connecting to Elasticsearch:', error)
@@ -22,7 +22,14 @@ const handleEventConnection = async ({ connectionElasticsearch }: { connectionEl
 }
 export const initElasticsearch = () => {
   const instanceElasticsearch = new Client({
-    node: process.env.ELASTICSEARCH_NODE
+    node: process.env.ELASTICSEARCH_NODE,
+    auth: {
+      username: process.env.ELASTICSEARCH_USER_NAME,
+      password: process.env.ELASTICSEARCH_PASSWORD
+    },
+    tls: {
+      rejectUnauthorized: false
+    }
   })
 
   const client = { instanceConnect: instanceElasticsearch }

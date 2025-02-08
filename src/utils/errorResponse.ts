@@ -13,11 +13,15 @@ export class ServerError extends HttpException {
 }
 
 export class ServerErrorDefault extends HttpException {
+  private readonly customCode: number
   constructor(error: any) {
     const message = error?.message || 'Đã có lỗi xảy ra, vui lòng thử lại sau ít phút'
     const status = error?.status || HttpStatus.INTERNAL_SERVER_ERROR
-
-    super(message, status)
+    super({ message, code: error?.customCode || 0, status }, status)
+    this.customCode = error?.customCode || 0
+  }
+  getCustomCode(): number {
+    return this.customCode
   }
 }
 

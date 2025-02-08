@@ -1,0 +1,17 @@
+# Loại bỏ node_modules và các file tạm
+node_modules
+dist
+*.log
+
+# Loại bỏ các file hệ thống
+.DS_Store
+Thumbs.db
+
+# Loại bỏ file Dockerfile và docker-compose (nếu không cần thiết trong image)
+Dockerfile
+docker-compose*.yml
+
+# Loại bỏ các file test
+*.test.ts
+*.spec.ts
+coverage

@@ -1,0 +1,49 @@
+variables:
+  DOCKER_IMAGE: ${REGISTRY_URL}/${REGISTRY_PROJECT}/${CI_PROJECT_NAME}:${CI_COMMIT_TAG}_${CI_COMMIT_SHORT_SHA}
+  DOCKER_CONTAINER: order_pg
+stages:
+  - buildandpush
+  - deploy
+  - showlog
+
+buildandpush:
+  stage: buildandpush
+  variables:
+    GIT_STRATEGY: clone
+  before_script:
+    - docker login ${REGISTRY_URL} -u ${REGISTRY_USER} -p ${REGISTRY_PASSOWRD}
+  script:
+    - docker build -t $DOCKER_IMAGE .
+    - docker push $DOCKER_IMAGE
+  tags:
+    - vuducb
+  only:
+    - tags
+
+deploy:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: clone
+  before_script:
+    - docker login ${REGISTRY_URL} -u ${REGISTRY_USER} -p ${REGISTRY_PASSOWRD}
+  script:
+    - docker network inspect backend_qlnh_network || docker network create backend_qlnh_network
+    - docker pull $DOCKER_IMAGE
+    - docker rm -f $DOCKER_CONTAINER
+    - docker run -d --name $DOCKER_CONTAINER -p 8000:8000 -p 5001:5001 --network backend_qlnh_network $DOCKER_IMAGE
+  tags:
+    - vuducb
+  only:
+    - tags
+
+showlog:
+  stage: showlog
+  variables:
+    GIT_STRATEGY: clone
+  script:
+    - sleep 20
+    - docker logs $DOCKER_CONTAINER
+  tags:
+    - vuducb
+  only:
+    - tags

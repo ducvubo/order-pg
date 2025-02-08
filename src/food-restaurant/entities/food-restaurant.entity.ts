@@ -32,13 +32,13 @@ export class FoodRestaurantEntity extends SampleEntity {
   @Column('varchar', { length: 255 })
   food_slug?: string
 
-  @Column('text')
+  @Column('clob')
   food_description?: string
 
-  @Column('bigint')
+  @Column('number')
   food_price?: number
 
-  @Column('text')
+  @Column('clob')
   food_image?: string
 
   @Column('varchar', { length: 255, default: 'enable' })
@@ -56,7 +56,7 @@ export class FoodRestaurantEntity extends SampleEntity {
   @Column('varchar', { length: 255 })
   food_note?: string
 
-  @Column('bigint')
+  @Column('number')
   food_sort?: number
 
   @OneToMany(() => FoodComboItemsEntity, (item) => item.fcbi_food, { cascade: true })
