@@ -23,9 +23,9 @@ jobs:
 
       - name: Update GitLab remote URL
         run: |
-          git remote set-url origin https://gitlab.taphoaictu.id.vn/vuducb/order_pg.git
+          git remote set-url origin https://gitlab.taphoaictu.id.vn/vuducbo/order_pg.git
           git branch -M main
 
       - name: Push to GitLab
         run: |
-          git push -uf https://oauth2:glpat-ZPwpNovN2_1Pjdo7CUcx@gitlab.taphoaictu.id.vn/vuducb/order_pg.git main
+          git push -uf https://oauth2:glpat-ZPwpNovN2_1Pjdo7CUcx@gitlab.taphoaictu.id.vn/vuducbo/order_pg.git main
