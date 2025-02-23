@@ -12,9 +12,9 @@ import { FoodComboItemsEntity, FoodComboItemsSubscriber } from './food-combo-ite
 import { FoodComboResEntity, FoodComboResSubscriber } from './combo-food-res/entities/combo-food-res.entity'
 import { FoodOptionsModule } from './food-options/food-options.module'
 import { FoodOptionsEntity, FoodOptionsSubscriber } from './food-options/entities/food-options.entity'
-import { ProgramPromotionModule } from './program-promotion/program-promotion.module'
 import { UploadModule } from './upload/upload.module'
-import * as fs from 'fs'
+import { SpecialOffersModule } from './special-offers/special-offers.module'
+import { SpecialOfferEntity, SpecialOfferSubscriber } from './special-offers/entities/special-offer.entity'
 
 @Module({
   imports: [
@@ -22,39 +22,28 @@ import * as fs from 'fs'
       isGlobal: true
     }),
     TypeOrmModule.forRoot({
-      // type: 'postgres',
-      // host: 'localhost',
-      // port: 5432,
-      // username: 'postgres',
-      // password: 'postgres',
-      // database: 'development_database',
-
-      // type: 'postgres',
-      // host: 'pg-102d6f8e-vminhduc8-88ed.h.aivencloud.com',
-      // port: 13890,
-      // username: 'avnadmin',
-      // password: 'AVNS_1OsX3Ol7nY47D5aQUuK',
-      // database: 'orderpg',
-      // ssl: {
-      //   rejectUnauthorized: true,
-      //   ca: Buffer.from(fs.readFileSync('src/config/keypem/ca-pg.pem'))
-      // },
       type: 'oracle',
       host: '160.191.51.57',
       port: 1521,
       username: 'OrderPG',
       password: 'Duc17052003*',
       serviceName: 'ORCLPDB1',
-      entities: [FoodRestaurantEntity, FoodComboItemsEntity, FoodComboResEntity, FoodOptionsEntity],
-      subscribers: [FoodRestaurantSubscriber, FoodComboResSubscriber, FoodComboItemsSubscriber, FoodOptionsSubscriber],
+      entities: [FoodRestaurantEntity, FoodComboItemsEntity, FoodComboResEntity, FoodOptionsEntity, SpecialOfferEntity],
+      subscribers: [
+        FoodRestaurantSubscriber,
+        FoodComboResSubscriber,
+        FoodComboItemsSubscriber,
+        FoodOptionsSubscriber,
+        SpecialOfferSubscriber
+      ],
       synchronize: true
     }),
     FoodRestaurantModule,
     ComboFoodResModule,
     FoodComboItemsModule,
     FoodOptionsModule,
-    ProgramPromotionModule,
-    UploadModule
+    UploadModule,
+    SpecialOffersModule
   ],
   controllers: [AppController],
   providers: [AppService]

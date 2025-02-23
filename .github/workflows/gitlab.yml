@@ -28,4 +28,4 @@ jobs:
 
       - name: Push to GitLab
         run: |
-          git push -uf https://oauth2:glpat-ZPwpNovN2_1Pjdo7CUcx@gitlab.taphoaictu.id.vn/vuducbo/order_pg.git main
+          git push -uf https://oauth2:glpat-L39ankS-wxyKEzsuwwiU@gitlab.taphoaictu.id.vn/vuducbo/order_pg.git main

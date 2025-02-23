@@ -8,14 +8,10 @@ import { IdUserGuestInterceptor } from './interceptor/guestId.interceptor'
 import { join } from 'path'
 import { initRedis } from './config/redis.config'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
-import { AllExceptionsFilter } from './interceptor/exception.interceptor'
-// import { initOpenSearch } from './config/open-search.config'
 import { initKafka } from './config/kafka.config'
 import { initElasticsearch } from './config/elasticsearch.config'
-import { initMinio } from './config/minio.config'
 
 async function bootstrap() {
-  // const app = await NestFactory.create(AppModule)
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
 
   const configService = app.get(ConfigService)
@@ -25,15 +21,11 @@ async function bootstrap() {
 
   initRedis()
   initElasticsearch()
-  // initOpenSearch()
-  initKafka()
-  initMinio()
-
-  // await addDocToElasticsearch('test', '1', { name: 'test' })
+  // initKafka()
+  // initMinio()
 
   app.useGlobalInterceptors(new TransformIntercaptor(reflector))
   app.useGlobalInterceptors(new IdUserGuestInterceptor(reflector))
-  // app.useGlobalFilters(new AllExceptionsFilter())
 
   app.useStaticAssets(join(__dirname, '..', 'public'))
   app.setBaseViewsDir(join(__dirname, '..', 'views'))

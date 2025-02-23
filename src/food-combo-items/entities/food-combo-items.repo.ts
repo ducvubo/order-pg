@@ -4,9 +4,10 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { addDocToElasticsearch, deleteAllDocByElasticsearch, indexElasticsearchExists } from 'src/utils/elasticsearch'
 import { FOOD_COMBO_ITEM_ELASTICSEARCH_INDEX } from 'src/constants/index.elasticsearch'
 import { ConfigService } from '@nestjs/config'
-import { OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { FoodComboItemsEntity } from './food-combo-items.entity'
 
+@Injectable()
 export class FoodComboItemsRepo implements OnModuleInit {
   constructor(
     @InjectRepository(FoodComboItemsEntity)

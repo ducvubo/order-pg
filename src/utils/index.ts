@@ -1,4 +1,5 @@
 import md5 from 'md5'
+import { IAccount } from 'src/guard/interface/account.interface'
 
 export const formatDate = (date: Date): string => {
   const hours = String(date.getHours()).padStart(2, '0')
@@ -45,4 +46,11 @@ export function genSignEndPoint() {
     nonce: nonce,
     stime: stime.toString()
   }
+}
+
+export const buidByAccount = (account: IAccount) => {
+  return JSON.stringify({
+    email: account.account_email,
+    id: account.account_employee_id ? account.account_employee_id : account.account_restaurant_id
+  })
 }

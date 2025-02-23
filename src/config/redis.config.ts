@@ -23,12 +23,13 @@ const handleEventConnection = ({ connectionRedis }: { connectionRedis: any }) =>
   })
 }
 export const initRedis = () => {
-  const instanceRedis = new redis({
-    port: Number(process.env.REDIS_PORT),
-    host: process.env.REDIS_HOST,
-    username: process.env.REDIS_USERNAME,
-    password: process.env.REDIS_PASSWORD
-  })
+  // const instanceRedis = new redis({
+  //   port: Number(process.env.REDIS_PORT),
+  //   host: process.env.REDIS_HOST,
+  //   username: process.env.REDIS_USERNAME,
+  //   password: process.env.REDIS_PASSWORD
+  // })
+  const instanceRedis = new redis("rediss://default:AVNS_nzu46kPwrfQYp6Cc9Np@caching-32653a4c-vminhduc8-88ed.e.aivencloud.com:13891")
 
   const client = { instanceConnect: instanceRedis }
   handleEventConnection({ connectionRedis: instanceRedis })

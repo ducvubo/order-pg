@@ -5,9 +5,10 @@ import { ServerErrorDefault } from 'src/utils/errorResponse'
 import { addDocToElasticsearch, deleteAllDocByElasticsearch, indexElasticsearchExists } from 'src/utils/elasticsearch'
 import { FOOD_RESTAURANT_ELASTICSEARCH_INDEX } from 'src/constants/index.elasticsearch'
 import { ConfigService } from '@nestjs/config'
-import { OnModuleInit } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { saveLogSystem } from 'src/log/sendLog.els'
 
+@Injectable()
 export class FoodRestaurantRepo implements OnModuleInit {
   constructor(
     @InjectRepository(FoodRestaurantEntity)
@@ -158,7 +159,6 @@ export class FoodRestaurantRepo implements OnModuleInit {
         .where({
           food_id,
           food_res_id,
-          isDeleted: 0,
           updatedAt: new Date()
         })
         .set({

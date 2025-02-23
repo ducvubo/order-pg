@@ -26,6 +26,7 @@ export const FOOD_RESTAURANT_ELASTICSEARCH_INDEX = 'food-restaurant'
 export const FOOD_OPTIONS_ELASTICSEARCH_INDEX = 'food-options'
 export const FOOD_COMBO_RES_ELASTICSEARCH_INDEX = 'food-combo-res'
 export const FOOD_COMBO_ITEM_ELASTICSEARCH_INDEX = 'food-combo-item'
+export const SPECIAL_OFFER_ELASTICSEARCH_INDEX = 'special-offers'
 
 export const WORKING_SHIFT_ELASTICSEARCH_INDEX = 'working-shift'
 export const SHIFT_ASSIGNMENT_ELASTICHSEARCH_INDEX = 'shift-assignment'

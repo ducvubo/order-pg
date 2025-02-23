@@ -7,7 +7,9 @@ import { ResultPagination } from 'src/interface/resultPagination.interface'
 import { indexElasticsearchExists } from 'src/utils/elasticsearch'
 import { getElasticsearch } from 'src/config/elasticsearch.config'
 import { FoodRestaurantEntity } from './food-restaurant.entity'
+import { Injectable } from '@nestjs/common'
 
+@Injectable()
 export class FoodRestaurantQuery {
   private readonly elasticSearch = getElasticsearch().instanceConnect
   constructor(private readonly configService: ConfigService) {}

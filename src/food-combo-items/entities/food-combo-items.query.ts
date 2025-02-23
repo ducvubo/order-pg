@@ -5,7 +5,9 @@ import { saveLogSystem } from 'src/log/sendLog.els'
 import { indexElasticsearchExists } from 'src/utils/elasticsearch'
 import { ServerErrorDefault } from 'src/utils/errorResponse'
 import { FoodComboItemsEntity } from './food-combo-items.entity'
+import { Injectable } from '@nestjs/common'
 
+@Injectable()
 export class FoodComboItemsQuery {
   private readonly elasticSearch = getElasticsearch().instanceConnect
   constructor(private readonly configService: ConfigService) {}
