@@ -229,4 +229,21 @@ export class SpecialOffersService {
       throw new ServerErrorDefault(error)
     }
   }
+
+  async findSpecialOffers(spo_res_id: string): Promise<SpecialOfferEntity[]> {
+    try {
+      return await this.specialOfferQuery.findSpecialOffers(spo_res_id)
+    } catch (error) {
+      saveLogSystem({
+        action: 'findSpecialOffers',
+        class: 'SpecialOffersService',
+        function: 'findSpecialOffers',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }

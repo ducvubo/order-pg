@@ -432,4 +432,21 @@ export class ComboFoodResService {
       throw new ServerErrorDefault(error)
     }
   }
+
+  async findComboFoodRestaurants(combo_food_res_id: string): Promise<FoodComboResEntity[]> {
+    try {
+      return await this.foodComboResQuery.findComboFoodRestaurants(combo_food_res_id)
+    } catch (error) {
+      saveLogSystem({
+        action: 'findComboFoodRestaurants',
+        class: 'ComboFoodResService',
+        function: 'findComboFoodRestaurants',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }

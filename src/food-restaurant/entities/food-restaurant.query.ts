@@ -1,5 +1,8 @@
 import { ConfigService } from '@nestjs/config'
-import { FOOD_RESTAURANT_ELASTICSEARCH_INDEX } from 'src/constants/index.elasticsearch'
+import {
+  FOOD_OPTIONS_ELASTICSEARCH_INDEX,
+  FOOD_RESTAURANT_ELASTICSEARCH_INDEX
+} from 'src/constants/index.elasticsearch'
 import { saveLogSystem } from 'src/log/sendLog.els'
 import { ServerErrorDefault } from 'src/utils/errorResponse'
 import { IAccount } from 'src/guard/interface/account.interface'
@@ -285,18 +288,89 @@ export class FoodRestaurantQuery {
         return null
       }
 
+      //isDeleted: 0
+      //food_status: enable
+      // chỉ lấy ra food_name,food_note, food_open_time, food_close_time, food_slug, food_sort, food_price, food_state
       const result = await this.elasticSearch.search({
         index: FOOD_RESTAURANT_ELASTICSEARCH_INDEX,
         body: {
+          size: 10000,
+          from: 0,
           query: {
-            match: {
-              food_res_id
+            bool: {
+              must: [
+                {
+                  match: {
+                    food_res_id: {
+                      query: food_res_id,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    isDeleted: {
+                      query: 0,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    food_status: {
+                      query: 'enable',
+                      operator: 'and'
+                    }
+                  }
+                }
+              ]
             }
-          }
+          },
+          _source: [
+            'food_image',
+            'food_id',
+            'food_name',
+            'food_note',
+            'food_open_time',
+            'food_close_time',
+            'food_slug',
+            'food_sort',
+            'food_price',
+            'food_state'
+          ]
         }
       })
 
-      return result.hits?.hits.map((hit) => hit._source) || []
+      const listFood = result.hits?.hits.map((hit) => hit._source) || []
+
+      // await Promise.all(
+      //   listFood.map(async (food: FoodRestaurantEntity) => {
+      //     const resultOption = await this.elasticSearch.search({
+      //       index: FOOD_OPTIONS_ELASTICSEARCH_INDEX,
+      //       body: {
+      //         from: 0,
+      //         size: 10000,
+      //         query: {
+      //           bool: {
+      //             must: [
+      //               {
+      //                 match: {
+      //                   fopt_food_id: {
+      //                     query: food.food_id,
+      //                     operator: 'and'
+      //                   }
+      //                 }
+      //               }
+      //             ]
+      //           }
+      //         }
+      //       }
+      //     })
+      //     food.fopt_food = resultOption.hits?.hits.map((hit) => hit._source) || []
+      //   })
+      // )
+
+      return listFood
     } catch (error) {
       saveLogSystem({
         action: 'findFoodRestaurants',

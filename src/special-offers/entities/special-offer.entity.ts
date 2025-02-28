@@ -23,7 +23,7 @@ export class SpecialOfferEntity extends SampleEntity {
   @Column('varchar', { length: 255 })
   spo_title?: string
 
-  @Column('varchar', { length: 255 })
+  @Column('clob')
   spo_description?: string
 
   @Column('varchar', { length: 255, default: 'enable' })

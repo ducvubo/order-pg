@@ -53,6 +53,13 @@ export class SpecialOffersController {
     )
   }
 
+  @Get('/list-special-offer/:spo_res_id')
+  @ResponseMessage('Lấy danh sách ưu đãi thành công')
+  async findSpecialOffers(@Param('spo_res_id') spo_res_id: string): Promise<SpecialOfferEntity[]> {
+    return await this.specialOffersService.findSpecialOffers(spo_res_id)
+  }
+
+
   @Get('/recycle')
   @ResponseMessage('Lấy danh sách ưu đãi đã xóa thành công')
   @UseGuards(AccountAuthGuard)

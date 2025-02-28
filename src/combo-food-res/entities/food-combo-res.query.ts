@@ -164,4 +164,80 @@ export class FoodComboResQuery {
       throw new ServerErrorDefault(error)
     }
   }
+
+  async findComboFoodRestaurants(combo_food_res_id: string): Promise<FoodComboResEntity[]> {
+    try {
+      const indexExist = await indexElasticsearchExists(FOOD_COMBO_RES_ELASTICSEARCH_INDEX)
+
+      if (!indexExist) {
+        return []
+      }
+
+      //fcb_status: enable
+      //isDeleted: 0
+
+      const result = await this.elasticSearch.search({
+        index: FOOD_COMBO_RES_ELASTICSEARCH_INDEX,
+        body: {
+          from: 0,
+          size: 10000,
+          query: {
+            bool: {
+              must: [
+                {
+                  match: {
+                    fcb_res_id: {
+                      query: combo_food_res_id,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    fcb_status: {
+                      query: 'enable',
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    isDeleted: {
+                      query: 0,
+                      operator: 'and'
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          _source: [
+            'fcb_id',
+            'fcb_name',
+            'fcb_price',
+            'fcb_note',
+            'fcb_image',
+            'fcb_slug',
+            'fcb_open_time',
+            'fcb_close_time',
+            'fcb_state',
+            'fcb_sort'
+          ]
+        }
+      })
+
+      return result.hits?.hits.map((hit) => hit._source) || []
+    } catch (error) {
+      saveLogSystem({
+        action: 'findComboFoodRestaurants',
+        class: 'FoodComboResQuery',
+        function: 'findComboFoodRestaurants',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }

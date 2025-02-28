@@ -166,4 +166,68 @@ export class SpecialOfferQuery {
       throw new ServerErrorDefault(error)
     }
   }
+
+  async findSpecialOffers(spo_res_id: string): Promise<SpecialOfferEntity[]> {
+    try {
+      const indexExist = await indexElasticsearchExists(SPECIAL_OFFER_ELASTICSEARCH_INDEX)
+
+      if (!indexExist) {
+        return []
+      }
+      //spo_res_id: spo_res_id
+      // spo_status: 'enable'
+      // isDeleted: 0
+      const result = await this.elasticSearch.search({
+        index: SPECIAL_OFFER_ELASTICSEARCH_INDEX,
+        body: {
+          from: 0,
+          size: 10000,
+          query: {
+            bool: {
+              must: [
+                {
+                  match: {
+                    spo_res_id: {
+                      query: spo_res_id,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    spo_status: {
+                      query: 'enable',
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    isDeleted: {
+                      query: 0,
+                      operator: 'and'
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          _source: ['spo_title', 'spo_description', 'spo_id']
+        }
+      })
+
+      return result.hits?.hits.map((hit) => hit._source) || []
+    } catch (error) {
+      saveLogSystem({
+        action: 'findSpecialOffers',
+        class: 'SpecialOfferQuery',
+        function: 'findSpecialOffers',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }

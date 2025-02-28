@@ -47,6 +47,12 @@ export class ComboFoodResController {
     return await this.comboFoodResService.findAll({ pageSize: +pageSize, pageIndex: +pageIndex, fcb_name }, account)
   }
 
+  @Get('/list-combo-food/:combo_food_res_id')
+  @ResponseMessage('Lấy danh sách món ăn thành công')
+  async findFoodRestaurants(@Param('combo_food_res_id') combo_food_res_id: string): Promise<FoodComboResEntity[]> {
+    return await this.comboFoodResService.findComboFoodRestaurants(combo_food_res_id)
+  }
+
   @Patch('update-status')
   @ResponseMessage('Cập nhật trạng thái combo thành công')
   @UseGuards(AccountAuthGuard)

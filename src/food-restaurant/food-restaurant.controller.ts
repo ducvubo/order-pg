@@ -47,9 +47,9 @@ export class FoodRestaurantController {
     return await this.foodRestaurantService.update(updateFoodRestaurantDto, account)
   }
 
-  @Get('/list-food')
+  @Get('/list-food/:food_res_id')
   @ResponseMessage('Lấy danh sách món ăn thành công')
-  async findFoodRestaurants(@Query('food_res_id') food_res_id: string): Promise<FoodRestaurantEntity[]> {
+  async findFoodRestaurants(@Param('food_res_id') food_res_id: string): Promise<FoodRestaurantEntity[]> {
     return await this.foodRestaurantService.findFoodRestaurants(food_res_id)
   }
 
