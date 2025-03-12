@@ -1,17 +1,15 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common'
-import { ForbiddenError, UnauthorizedCodeError } from 'src/utils/errorResponse'
-import { IAccount } from './interface/account.interface'
-import { sendRequest } from 'src/utils/api'
-import { ConfigService } from '@nestjs/config'
+import { saveLogSystem } from 'src/log/sendLog.els'
+import { UnauthorizedCodeError } from 'src/utils/errorResponse'
+import { findAccoutById, findEmployeeByIdOfToken, findRefreshToken, findRestaurantByIdOfToken, verifyToken } from './query/authen.guard'
 
 @Injectable()
 export class AccountAuthGuard implements CanActivate {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest()
-    // throw new ForbiddenError('Token không hợp lệ1')
-    // throw new UnauthorizedCodeError('Token không hợp lệ1', -10)
 
     const access_token_rtr = request.headers['x-at-rtr'] ? request.headers['x-at-rtr'].split(' ')[1] : null
     const refresh_token_rtr = request.headers['x-rf-rtr'] ? request.headers['x-rf-rtr'].split(' ')[1] : null
@@ -22,38 +20,56 @@ export class AccountAuthGuard implements CanActivate {
     const access_token = access_token_rtr ? access_token_rtr : access_token_epl
     const refresh_token = refresh_token_rtr ? refresh_token_rtr : refresh_token_epl
 
-    if (!access_token || !refresh_token) throw new UnauthorizedCodeError('Token không hợp lệ 99', -10)
+    if (!access_token || !refresh_token) throw new UnauthorizedCodeError('Token không hợp lệ1', -10)
     // if (!access_token || !refresh_token) throw new ForbiddenError('Token không hợp lệ1')
 
     try {
-      let keyAccess = ''
-      let keyRefresh = ''
-      if (access_token_epl && refresh_token_epl) {
-        keyAccess = 'x-at-epl'
-        keyRefresh = 'x-rf-epl'
-      }
-      if (access_token_rtr && refresh_token_rtr) {
-        keyAccess = 'x-at-rtr'
-        keyRefresh = 'x-rf-rtr'
-      }
-      const res: IBackendRes<IAccount> = await sendRequest({
-        method: 'POST',
-        url: `${this.configService.get('URL_SERVICE_BACK')}/restaurants/authen`,
-        headers: {
-          [keyAccess]: `Bearer ${access_token}`,
-          [keyRefresh]: `Bearer ${refresh_token}`
-        }
+      const { rf_public_key_refresh_token, rf_public_key_access_token } = await findRefreshToken({
+        rf_refresh_token: refresh_token
       })
 
-      if (res.statusCode === 401) throw new UnauthorizedCodeError(res.message, -10)
-      if (res.statusCode === 403) throw new ForbiddenError(res.message)
-      if (res.statusCode !== 201) throw new UnauthorizedCodeError('Token không hợp lệ 98', -10)
+      if (!rf_public_key_refresh_token || !rf_public_key_access_token)
+        throw new UnauthorizedCodeError('Token không hợp lệ4', -10)
 
-      request.account = res.data
+      const dataToken = await Promise.all([
+        verifyToken(access_token, rf_public_key_access_token),
+        verifyToken(refresh_token, rf_public_key_refresh_token)
+      ])
+
+      if (!dataToken[0] || !dataToken[1]) throw new UnauthorizedCodeError('Token không hợp lệ2', -10)
+
+      const account: any = await findAccoutById({ _id: dataToken[0]._id })
+      if (!account) throw new UnauthorizedCodeError('Token không hợp lệ 5', -10)
+
+      if (account.account_type === 'restaurant') {
+        const restaurant = await findRestaurantByIdOfToken({ _id: account.account_restaurant_id })
+        if (!restaurant) throw new UnauthorizedCodeError('Token không hợp lệ 5', -10)
+
+        account.account_password = undefined
+        request.account = account
+        return true
+      }
+
+      if (account.account_type === 'employee') {
+        const employee = await findEmployeeByIdOfToken({ _id: account.account_employee_id })
+        if (!employee) throw new UnauthorizedCodeError('Token không hợp lệ 5', -10)
+
+        account.account_password = undefined
+        request.account = account
+        return true
+      }
       return true
     } catch (error) {
-      console.log(error)
-      throw new UnauthorizedCodeError('Token không hợp lệ 97', -10)
+      saveLogSystem({
+        type: 'error',
+        message: error.message,
+        action: 'canActivate',
+        class: 'AccountAuthGuard',
+        function: 'canActivate',
+        time: new Date(),
+        error: error
+      })
+      throw new UnauthorizedCodeError('Token không hợp lệ 3', -10)
     }
   }
 }

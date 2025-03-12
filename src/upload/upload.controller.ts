@@ -1,48 +1,65 @@
-import {
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  Post,
-  Query,
-  Req,
-  Res,
-  UploadedFile,
-  UseInterceptors
-} from '@nestjs/common'
-import { UploadService } from './upload.service'
-import { ResponseMessage } from 'src/decorator/customize'
-import { FileInterceptor } from '@nestjs/platform-express'
-import { MulterConfigService } from 'src/config/multer.config'
+import { Controller, Get, Post, Query, Req, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadService } from './upload.service';
+import { ResponseMessage } from 'src/decorator/customize';
+import { MulterConfigService } from 'src/config/multer.config';
 
+@ApiTags('Upload')
 @Controller('upload')
 export class UploadController {
-  constructor(private readonly uploadService: UploadService) {}
+  constructor(private readonly uploadService: UploadService) { }
 
   @Post()
+  @ApiOperation({ summary: 'Upload image to MinIO' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
   @ResponseMessage('Upload image')
   @UseInterceptors(FileInterceptor('file', new MulterConfigService().createMulterOptions()))
   async uploadImageFromLocal(@UploadedFile() file: Express.Multer.File, @Req() req: any): Promise<any> {
     if (!file) {
-      throw new Error('No file provided')
+      throw new Error('No file provided');
     }
 
-    return await this.uploadService.uploadFile(file, req.headers.folder_type || 'default')
+    return await this.uploadService.uploadFile(file, req.headers.folder_type || 'default');
   }
 
-  @Get()
-  @ResponseMessage('Get file from MinIO')
-  async getFile(@Query('bucketName') bucketName: string, @Query('fileName') fileName: string, @Res() res: any) {
-    try {
-      const file = await this.uploadService.getFileFromMinio(bucketName, fileName)
-      res.set({
-        'Content-Type': file.contentType, // Set Content-Type dựa trên MIME type của file
-        'Content-Disposition': `attachment; filename="${fileName}"`
-      })
+  @Get('get-image')
+  @ApiOperation({ summary: 'Get signed URL for image' })
+  @ApiQuery({ name: 'bucket', required: true, type: 'string' })
+  @ApiQuery({ name: 'file', required: true, type: 'string' })
+  @ResponseMessage('Get signed URL for image')
+  async getImageUrl(
+    @Query('bucket') bucketName: string,
+    @Query('file') fileName: string,
+  ): Promise<{ url: string }> {
+    const url = await this.uploadService.getSignedUrl(bucketName, fileName);
+    return { url };
+  }
 
-      res.send(file.data) // Trả về file trong response
-    } catch (error) {
-      throw new NotFoundException('File not found')
-    }
+  @Get('view-image')
+  @ApiOperation({ summary: 'View image from server' })
+  @ApiQuery({ name: 'bucket', required: true, type: 'string' })
+  @ApiQuery({ name: 'file', required: true, type: 'string' })
+  @ResponseMessage('View image from server')
+  async viewImage(
+    @Query('bucket') bucketName: string,
+    @Query('file') fileName: string,
+    @Res() res: any,
+  ): Promise<void> {
+    const { stream, contentType } = await this.uploadService.getFileStream(bucketName, fileName);
+    res.set({
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=86400', // Cache 1 ngày
+    });
+
+    stream.pipe(res);
   }
 }

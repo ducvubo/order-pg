@@ -13,7 +13,7 @@ import { UpdateStateFoodRestaurantDto } from './dto/update-state-food-restaurant
 
 @Controller('food-restaurant')
 export class FoodRestaurantController {
-  constructor(private readonly foodRestaurantService: FoodRestaurantService) {}
+  constructor(private readonly foodRestaurantService: FoodRestaurantService) { }
 
   @Post()
   @ResponseMessage('Tạo món ăn thành công')

@@ -13,7 +13,7 @@ import { UpdateStateFoodComboResDto } from './dto/update-state-food-combo-res.dt
 
 @Controller('combo-food-res')
 export class ComboFoodResController {
-  constructor(private readonly comboFoodResService: ComboFoodResService) {}
+  constructor(private readonly comboFoodResService: ComboFoodResService) { }
 
   @Post()
   @ResponseMessage('Thêm combo thành công')

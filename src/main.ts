@@ -10,6 +10,7 @@ import { initRedis } from './config/redis.config'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { initKafka } from './config/kafka.config'
 import { initElasticsearch } from './config/elasticsearch.config'
+import { TimeoutInterceptor } from './interceptor/timeout.interceptor'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
@@ -24,6 +25,7 @@ async function bootstrap() {
   // initKafka()
   // initMinio()
 
+  app.useGlobalInterceptors(new TimeoutInterceptor())
   app.useGlobalInterceptors(new TransformIntercaptor(reflector))
   app.useGlobalInterceptors(new IdUserGuestInterceptor(reflector))
 

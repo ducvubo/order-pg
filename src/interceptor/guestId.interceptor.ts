@@ -11,18 +11,27 @@ import { saveLogApiError, saveLogApiSuccess } from 'src/log/sendLog.els'
 
 @Injectable()
 export class IdUserGuestInterceptor implements NestInterceptor {
-  constructor(private reflector: Reflector) {}
+  constructor(private reflector: Reflector) { }
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest()
     const response = context.switchToHttp().getResponse()
     const id_user_guest = request.headers['id_user_guest']
     const id_user_guest_new = `Guest-${uuidv4()}`
     const handler = context.getHandler()
-    const messageRes = this.reflector.get<ResponseMessage>(RESPONSE_MESSAGE, handler).message || ''
     const codeHeader = context.switchToHttp().getResponse().statusCode
     const startTime = Date.now()
     const userAgent = request.headers['user-agent']
     const clientIp = request.ip
+    const path = request.path
+    const isImageApi = path.startsWith('/api/v1/upload/view-image');
+    if (isImageApi) {
+      return next.handle()
+    }
+
+    if (path === '/metrics' || path === '/api/metrics' || path === '/api/v1/metrics') {
+      return next.handle()
+    }
+    const messageRes = this.reflector.get<ResponseMessage>(RESPONSE_MESSAGE, handler).message || ''
 
     if (id_user_guest && id_user_guest !== 'undefined') {
       response.setHeader('id_user_guest', id_user_guest)
@@ -34,19 +43,20 @@ export class IdUserGuestInterceptor implements NestInterceptor {
       tap((data) => {
         const duration = Date.now() - startTime
         const message = ` \n - path: ${request.path} \n - statusCode: ${codeHeader} \n - message: ${messageRes} \n - METHOD: ${request.method} \n - id_user_guest: ${id_user_guest ? id_user_guest : id_user_guest_new} \n - time: ${formatDate(new Date())} \n - duration: ${duration}ms`
-        // loggerService.sendLog({
-        //   message: message,
-        //   params: request.query,
-        //   bodyRequest: request.body
-        //     ? JSON.stringify(request.body).length > 6000
-        //       ? 'Data too long'
-        //       : request.body
-        //     : 'No data',
-        //   headerResponse: {
-        //     id_user_guest: id_user_guest ? id_user_guest : id_user_guest_new
-        //   },
-        //   bodyResponse: JSON.stringify(data).length > 6000 ? 'Data too long' : data
-        // })
+
+        loggerService.sendLog({
+          message: message,
+          params: request.query,
+          bodyRequest: request.body
+            ? JSON.stringify(request.body)?.length > 2000
+              ? 'Data too long'
+              : request.body
+            : 'No data',
+          headerResponse: {
+            id_user_guest: id_user_guest ? id_user_guest : id_user_guest_new
+          },
+          bodyResponse: JSON.stringify(data).length > 2000 ? 'Data too long' : data
+        })
         saveLogApiSuccess({
           id_user_guest: id_user_guest ? id_user_guest : id_user_guest_new,
           userAgent: userAgent,
@@ -61,22 +71,23 @@ export class IdUserGuestInterceptor implements NestInterceptor {
           path: request.path,
           statusCode: codeHeader
         })
+
       }),
       catchError((error: any) => {
         const duration = Date.now() - startTime
         const message = ` \n - path: ${request.path} \n - statusCode: ${codeHeader} \n - METHOD: ${request.method} \n - id_user_guest: ${id_user_guest ? id_user_guest : id_user_guest_new} \n - time: ${formatDate(new Date())} \n - duration: ${duration}ms`
-        // loggerService.sendLog({
-        //   message: message,
-        //   params: request.query,
-        //   bodyRequest: request.body
-        //     ? JSON.stringify(request.body).length > 6000
-        //       ? 'Data too long'
-        //       : request.body
-        //     : 'No data',
-        //   bodyResponse: {
-        //     message: error?.response?.message || error.message || 'Unknown error'
-        //   }
-        // })
+        loggerService.sendLog({
+          message: message,
+          params: request.query,
+          bodyRequest: request.body
+            ? JSON.stringify(request.body)?.length > 2000
+              ? 'Data too long'
+              : request.body
+            : 'No data',
+          bodyResponse: {
+            message: error?.response?.message || error.message || 'Unknown error'
+          }
+        })
         saveLogApiError({
           id_user_guest: id_user_guest ? id_user_guest : id_user_guest_new,
           userAgent: userAgent,

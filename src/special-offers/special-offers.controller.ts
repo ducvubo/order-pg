@@ -12,7 +12,7 @@ import { UpdateStatusSpecialOfferDto } from './dto/update-status-special-offer.d
 
 @Controller('special-offers')
 export class SpecialOffersController {
-  constructor(private readonly specialOffersService: SpecialOffersService) {}
+  constructor(private readonly specialOffersService: SpecialOffersService) { }
 
   @Post()
   @ResponseMessage('Thêm ưu đãi thành công')

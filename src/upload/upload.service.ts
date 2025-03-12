@@ -1,53 +1,52 @@
-import { Injectable } from '@nestjs/common'
-import { getMinio } from 'src/config/minio.config'
-import { v4 as uuidv4 } from 'uuid'
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { getMinio } from 'src/config/minio.config';
+import { NotFoundError } from 'src/utils/errorResponse';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UploadService {
-  private readonly minio = getMinio().instanceConnect
+  private readonly minio = getMinio().instanceConnect;
+  private readonly minioUrl = process.env.MINIO_URL || 'https://minio.taphoaictu.id.vn';
 
   async uploadFile(file: Express.Multer.File, bucketName: string): Promise<any> {
-    const bucketExists = await this.minio.bucketExists(bucketName)
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+    bucketName = bucketName.replace("_", "-");
+
+
+    const fileExtension = file.originalname.split('.').pop();
+    const fileName = `${Date.now()}-${uuidv4()}.${fileExtension}`;
+    const metaData = { 'Content-Type': file.mimetype };
+
+    const bucketExists = await this.minio.bucketExists(bucketName);
     if (!bucketExists) {
-      await this.minio.makeBucket(bucketName, 'us-east-1')
+      await this.minio.makeBucket(bucketName, 'us-east-1');
     }
 
-    //get extension of file
-    const fileExtension = file.originalname.split('.').pop()
+    await this.minio.putObject(bucketName, fileName, file.buffer, file.size, metaData);
 
-    const fileName = `${Date.now()}-${uuidv4()}.${fileExtension}`
-    const metaData = {
-      'Content-Type': file.mimetype
-    }
-    await this.minio.putObject(bucketName, fileName, file.buffer, file.size, metaData)
     return {
-      bucket: bucketName,
-      fileName,
-      url: `http://localhost:9000/${bucketName}/${fileName}`
-    }
+      image_custom: `/api/view-image?bucket=${bucketName}&file=${fileName}`,
+      image_cloud: `/api/view-image?bucket=${bucketName}&file=${fileName}`,
+    };
   }
 
-  async getFileFromMinio(bucketName: string, fileName: string): Promise<any> {
+  async getSignedUrl(bucketName: string, fileName: string, expiry = 24 * 60 * 60): Promise<string> {
+    if (!bucketName || !fileName) {
+      throw new BadRequestException('Bucket and file name are required');
+    }
+
+    return await this.minio.presignedUrl('GET', bucketName, fileName, expiry);
+  }
+
+  async getFileStream(bucketName: string, fileName: string): Promise<{ stream: any; contentType: string }> {
     try {
-      const fileStream = await this.minio.getObject(bucketName, fileName)
-      const fileBuffer = await this.streamToBuffer(fileStream)
-
-      return {
-        data: fileBuffer,
-        contentType: 'application/octet-stream' // Hoặc lấy content type chính xác nếu có
-      }
+      const metaData: any = await this.minio.statObject(bucketName, fileName);
+      const stream = await this.minio.getObject(bucketName, fileName);
+      return { stream, contentType: metaData.contentType || 'application/octet-stream' };
     } catch (error) {
-      throw new Error('Error retrieving file from MinIO')
+      throw new NotFoundError('File not found');
     }
-  }
-
-  // Chuyển đổi stream thành buffer
-  private streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      const chunks: Buffer[] = []
-      stream.on('data', (chunk) => chunks.push(chunk))
-      stream.on('end', () => resolve(Buffer.concat(chunks)))
-      stream.on('error', reject)
-    })
   }
 }

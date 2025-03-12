@@ -15,7 +15,7 @@ import { Injectable } from '@nestjs/common'
 @Injectable()
 export class FoodRestaurantQuery {
   private readonly elasticSearch = getElasticsearch().instanceConnect
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   async findOneByName(food_name: string, account: IAccount): Promise<FoodRestaurantEntity> {
     try {

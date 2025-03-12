@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package RestaurantProto;
+
+import "api.proto";
+
+
+service RestaurantServiceGprc {
+  rpc findOneRestaurantById (ReqFindOneRestaurantById) returns (api.IBackendGRPC) {}
+}
+
+message ReqFindOneRestaurantById {
+    string resId = 1;
+}
+
+
+

@@ -1,5 +1,5 @@
 import 'reflect-metadata'
-import { Module } from '@nestjs/common'
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { ConfigModule } from '@nestjs/config'
@@ -15,11 +15,22 @@ import { FoodOptionsEntity, FoodOptionsSubscriber } from './food-options/entitie
 import { UploadModule } from './upload/upload.module'
 import { SpecialOffersModule } from './special-offers/special-offers.module'
 import { SpecialOfferEntity, SpecialOfferSubscriber } from './special-offers/entities/special-offer.entity'
+import { RateLimiterMiddleware } from './middleware/rate-limiter.middleware'
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
+import { APP_GUARD } from '@nestjs/core'
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true
+    }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60000,
+          limit: 100
+        }
+      ]
     }),
     TypeOrmModule.forRoot({
       type: 'oracle',
@@ -28,13 +39,19 @@ import { SpecialOfferEntity, SpecialOfferSubscriber } from './special-offers/ent
       username: 'OrderPG',
       password: 'Duc17052003*',
       serviceName: 'ORCLPDB1',
-      entities: [FoodRestaurantEntity, FoodComboItemsEntity, FoodComboResEntity, FoodOptionsEntity, SpecialOfferEntity],
+      entities: [
+        FoodRestaurantEntity,
+        FoodComboItemsEntity,
+        FoodComboResEntity,
+        FoodOptionsEntity,
+        SpecialOfferEntity,
+      ],
       subscribers: [
         FoodRestaurantSubscriber,
         FoodComboResSubscriber,
         FoodComboItemsSubscriber,
         FoodOptionsSubscriber,
-        SpecialOfferSubscriber
+        SpecialOfferSubscriber,
       ],
       synchronize: true
     }),
@@ -43,9 +60,20 @@ import { SpecialOfferEntity, SpecialOfferSubscriber } from './special-offers/ent
     FoodComboItemsModule,
     FoodOptionsModule,
     UploadModule,
-    SpecialOffersModule
+    SpecialOffersModule,
   ],
   controllers: [AppController],
-  providers: [AppService]
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard
+    }
+  ]
 })
-export class AppModule {}
+// export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RateLimiterMiddleware).forRoutes('*') // Áp dụng cho tất cả route
+  }
+}
