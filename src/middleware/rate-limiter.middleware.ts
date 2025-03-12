@@ -8,7 +8,7 @@ const redisCache = getRedis().instanceConnect
 @Injectable()
 export class RateLimiterMiddleware implements NestMiddleware {
   private readonly windowSize = 60 // 60 giây
-  private readonly maxRequests = 2 // Tối đa 10 request mỗi phút
+  private readonly maxRequests = 10000 // Tối đa 10 request mỗi phút
 
   async use(req: Request, res: Response, next: NextFunction) {
     if (!redisCache) {

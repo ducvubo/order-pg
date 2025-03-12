@@ -24,14 +24,14 @@ import { APP_GUARD } from '@nestjs/core'
     ConfigModule.forRoot({
       isGlobal: true
     }),
-    ThrottlerModule.forRoot({
-      throttlers: [
-        {
-          ttl: 60000,
-          limit: 100
-        }
-      ]
-    }),
+    // ThrottlerModule.forRoot({
+    //   throttlers: [
+    //     {
+    //       ttl: 60000,
+    //       limit: 10000
+    //     }
+    //   ]
+    // }),
     TypeOrmModule.forRoot({
       type: 'oracle',
       host: '160.191.51.57',
@@ -65,10 +65,7 @@ import { APP_GUARD } from '@nestjs/core'
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard
-    }
+
   ]
 })
 // export class AppModule {}

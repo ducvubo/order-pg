@@ -25,7 +25,7 @@ async function bootstrap() {
   // initKafka()
   // initMinio()
 
-  app.useGlobalInterceptors(new TimeoutInterceptor())
+  // app.useGlobalInterceptors(new TimeoutInterceptor())
   app.useGlobalInterceptors(new TransformIntercaptor(reflector))
   app.useGlobalInterceptors(new IdUserGuestInterceptor(reflector))
 
