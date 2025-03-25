@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, Request } from '@nestjs/common'
 import { FoodRestaurantService } from './food-restaurant.service'
 import { Acccount, ResponseMessage } from 'src/decorator/customize'
 import { CreateFoodRestaurantDto } from './dto/create-food-restaurant.dto'
@@ -10,6 +10,8 @@ import { UpdateFoodRestaurantDto } from './dto/update-food-restaurant.dto'
 import { UpdateStatusFoodRestaurantDto } from './dto/update-status-food-restaurant.dto'
 import { UpdateResult } from 'typeorm'
 import { UpdateStateFoodRestaurantDto } from './dto/update-state-food-restaurant.dto'
+import { Request as RequestExpress } from 'express'
+
 
 @Controller('food-restaurant')
 export class FoodRestaurantController {
@@ -45,6 +47,12 @@ export class FoodRestaurantController {
     @Acccount() account: IAccount
   ): Promise<UpdateResult> {
     return await this.foodRestaurantService.update(updateFoodRestaurantDto, account)
+  }
+
+  @Post('/add-food-to-cart')
+  @ResponseMessage('Thêm món ăn vào giỏ hàng thành công')
+  async addFoodToCart(@Query('food_id') food_id: string, @Request() req: RequestExpress): Promise<boolean> {
+    return await this.foodRestaurantService.addFoodToCart({ food_id, id_user_guest: req.headers['x-cl-id'] as string })
   }
 
   @Get('/list-food/:food_res_id')

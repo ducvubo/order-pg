@@ -16,6 +16,7 @@ import { ResultPagination } from 'src/interface/resultPagination.interface'
 import { UpdateStatusFoodComboResDto } from './dto/update-status-food-combo-res.dto'
 import { UpdateStateFoodComboResDto } from './dto/update-state-food-combo-res.dto'
 import { FoodRestaurantQuery } from 'src/food-restaurant/entities/food-restaurant.query'
+import { getCacheIO, setCacheIO } from 'src/utils/cache'
 
 @Injectable()
 export class ComboFoodResService {
@@ -26,7 +27,7 @@ export class ComboFoodResService {
     private readonly foodComboItemsRepo: FoodComboItemsRepo,
     private readonly foodRestaurantQuery: FoodRestaurantQuery,
     private readonly dataSource: DataSource
-  ) {}
+  ) { }
 
   async createComboFoodRes(
     createFoodComboResDto: CreateFoodComboResDto,
@@ -441,6 +442,32 @@ export class ComboFoodResService {
         action: 'findComboFoodRestaurants',
         class: 'ComboFoodResService',
         function: 'findComboFoodRestaurants',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async addComboFoodToCart({ fcb_id, id_user_guest }: { fcb_id: string; id_user_guest: string }): Promise<boolean> {
+    try {
+      const listFoodCart = await getCacheIO(`combo_food_cart_${id_user_guest}`)
+      if (!listFoodCart) {
+        await setCacheIO(`combo_food_cart_${id_user_guest}`, [fcb_id])
+        return true
+      }
+      if (listFoodCart.includes(fcb_id)) {
+        return true
+      }
+      await setCacheIO(`combo_food_cart_${id_user_guest}`, [...listFoodCart, fcb_id])
+      return true
+    } catch (error) {
+      saveLogSystem({
+        action: 'addFoodToCart',
+        class: 'FoodRestaurantService',
+        function: 'addFoodToCart',
         message: error.message,
         time: new Date(),
         error: error,

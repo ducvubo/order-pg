@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, Request } from '@nestjs/common'
 import { ComboFoodResService } from './combo-food-res.service'
 import { Acccount, ResponseMessage } from 'src/decorator/customize'
 import { AccountAuthGuard } from 'src/guard/account.guard'
@@ -10,6 +10,7 @@ import { ResultPagination } from 'src/interface/resultPagination.interface'
 import { UpdateResult } from 'typeorm'
 import { UpdateStatusFoodComboResDto } from './dto/update-status-food-combo-res.dto'
 import { UpdateStateFoodComboResDto } from './dto/update-state-food-combo-res.dto'
+import { Request as RequestExpress } from 'express'
 
 @Controller('combo-food-res')
 export class ComboFoodResController {
@@ -45,6 +46,12 @@ export class ComboFoodResController {
     @Acccount() account: IAccount
   ): Promise<ResultPagination<FoodComboResEntity>> {
     return await this.comboFoodResService.findAll({ pageSize: +pageSize, pageIndex: +pageIndex, fcb_name }, account)
+  }
+
+  @Post('/add-combo-food-to-cart')
+  @ResponseMessage('Thêm combo món ăn vào giỏ hàng thành công')
+  async addFoodToCart(@Query('fcb_id') fcb_id: string, @Request() req: RequestExpress): Promise<boolean> {
+    return await this.comboFoodResService.addComboFoodToCart({ fcb_id, id_user_guest: req.headers['x-cl-id'] as string })
   }
 
   @Get('/list-combo-food/:combo_food_res_id')

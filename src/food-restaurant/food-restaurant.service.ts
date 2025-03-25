@@ -22,6 +22,7 @@ import { FoodRestaurantQuery } from './entities/food-restaurant.query'
 import { FoodOptionsRepo } from 'src/food-options/entities/food-options.repo'
 import { FoodOptionsQuery } from 'src/food-options/entities/food-options.query'
 import { FoodOptionsEntity } from 'src/food-options/entities/food-options.entity'
+import { getCacheIO, setCacheIO } from 'src/utils/cache'
 
 @Injectable()
 export class FoodRestaurantService implements OnModuleInit {
@@ -31,7 +32,7 @@ export class FoodRestaurantService implements OnModuleInit {
     private readonly foodOptionsRepo: FoodOptionsRepo,
     private readonly foodOptionQuery: FoodOptionsQuery,
     private readonly dataSource: DataSource
-  ) {}
+  ) { }
 
   @Client({
     transport: Transport.GRPC,
@@ -579,6 +580,32 @@ export class FoodRestaurantService implements OnModuleInit {
         action: 'findFoodRestaurants',
         class: 'FoodRestaurantService',
         function: 'findFoodRestaurants',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async addFoodToCart({ food_id, id_user_guest }: { food_id: string; id_user_guest: string }): Promise<boolean> {
+    try {
+      const listFoodCart = await getCacheIO(`food_cart_${id_user_guest}`)
+      if (!listFoodCart) {
+        await setCacheIO(`food_cart_${id_user_guest}`, [food_id])
+        return true
+      }
+      if (listFoodCart.includes(food_id)) {
+        return true
+      }
+      await setCacheIO(`food_cart_${id_user_guest}`, [...listFoodCart, food_id])
+      return true
+    } catch (error) {
+      saveLogSystem({
+        action: 'addFoodToCart',
+        class: 'FoodRestaurantService',
+        function: 'addFoodToCart',
         message: error.message,
         time: new Date(),
         error: error,
