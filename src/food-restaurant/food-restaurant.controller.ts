@@ -49,6 +49,12 @@ export class FoodRestaurantController {
     return await this.foodRestaurantService.update(updateFoodRestaurantDto, account)
   }
 
+  @Get('/get-food-res-slug/:food_slug')
+  @ResponseMessage('Lấy món ăn theo slug thành công')
+  async getFoodResSlug(@Param('food_slug') food_slug: string): Promise<FoodRestaurantEntity> {
+    return await this.foodRestaurantService.getFoodRestaurantBySlug(food_slug)
+  }
+
   @Post('/add-food-to-cart')
   @ResponseMessage('Thêm món ăn vào giỏ hàng thành công')
   async addFoodToCart(@Query('food_id') food_id: string, @Request() req: RequestExpress): Promise<boolean> {

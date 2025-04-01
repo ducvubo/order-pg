@@ -614,4 +614,23 @@ export class FoodRestaurantService implements OnModuleInit {
       throw new ServerErrorDefault(error)
     }
   }
+
+  async getFoodRestaurantBySlug(slug: string): Promise<FoodRestaurantEntity> {
+    try {
+      const data = await this.foodRestaurantQuery.getFoodRestaurantBySlug(slug)
+      data.fopt_food = await this.foodOptionQuery.findFoodOptionByIdFoodUI(data.food_id)
+      return data
+    } catch (error) {
+      saveLogSystem({
+        action: 'getFoodRestaurantBySlug',
+        class: 'FoodRestaurantService',
+        function: 'getFoodRestaurantBySlug',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }

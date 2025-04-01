@@ -384,4 +384,66 @@ export class FoodRestaurantQuery {
       throw new ServerErrorDefault(error)
     }
   }
+
+  async getFoodRestaurantBySlug(food_slug: string): Promise<FoodRestaurantEntity> {
+    try {
+      const indexExist = await indexElasticsearchExists(FOOD_RESTAURANT_ELASTICSEARCH_INDEX)
+
+      if (!indexExist) {
+        return null
+      }
+
+      //food_status = enable
+      //isDeleted = 0
+      const result = await this.elasticSearch.search({
+        index: FOOD_RESTAURANT_ELASTICSEARCH_INDEX,
+        body: {
+          query: {
+            bool: {
+              must: [
+                {
+                  match: {
+                    food_slug: {
+                      query: food_slug,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    isDeleted: {
+                      query: 0,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    food_status: {
+                      query: 'enable',
+                      operator: 'and'
+                    }
+                  }
+                }
+              ]
+            },
+          }
+        }
+      })
+
+
+      return result.hits?.hits[0]?._source || null
+    } catch (error) {
+      saveLogSystem({
+        action: 'getFoodRestaurantBySlug',
+        class: 'FoodRestaurantQuery',
+        function: 'getFoodRestaurantBySlug',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }
