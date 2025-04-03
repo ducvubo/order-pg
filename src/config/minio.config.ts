@@ -12,7 +12,7 @@ const handleEventConnection = async ({ connectionMinio }: { connectionMinio: Cli
 
 export const initMinio = () => {
   const instanceMinio = new Client({
-    endPoint: '160.191.51.57',
+    endPoint: '160.187.229.179',
     port: 9000,
     useSSL: false,
     accessKey: '5NgOHWoz4BXqMFX0hw2y',
