@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config'
 import { getElasticsearch } from 'src/config/elasticsearch.config'
-import { FOOD_COMBO_ITEM_ELASTICSEARCH_INDEX } from 'src/constants/index.elasticsearch'
+import { FOOD_COMBO_ITEM_ELASTICSEARCH_INDEX, FOOD_RESTAURANT_ELASTICSEARCH_INDEX } from 'src/constants/index.elasticsearch'
 import { saveLogSystem } from 'src/log/sendLog.els'
 import { indexElasticsearchExists } from 'src/utils/elasticsearch'
 import { ServerErrorDefault } from 'src/utils/errorResponse'
@@ -10,7 +10,7 @@ import { Injectable } from '@nestjs/common'
 @Injectable()
 export class FoodComboItemsQuery {
   private readonly elasticSearch = getElasticsearch().instanceConnect
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   async findOne(fcbi_id: string, fcbi_res_id: string): Promise<FoodComboItemsEntity> {
     try {
@@ -111,4 +111,95 @@ export class FoodComboItemsQuery {
       throw new ServerErrorDefault(error)
     }
   }
+
+  async getComboItemByIdComboIdWithUI(fcbi_combo_id: string): Promise<FoodComboItemsEntity[]> {
+    try {
+      const indexExist = await indexElasticsearchExists(FOOD_COMBO_ITEM_ELASTICSEARCH_INDEX);
+
+      if (!indexExist) {
+        return [];
+      }
+
+      const result = await this.elasticSearch.search({
+        index: FOOD_COMBO_ITEM_ELASTICSEARCH_INDEX,
+        body: {
+          query: {
+            bool: {
+              must: [
+                {
+                  match: {
+                    fcbi_combo_id: {
+                      query: fcbi_combo_id,
+                      operator: "and",
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const foodComboItem = result.hits?.hits.map((item: any) => item._source) || [];
+
+      const updatedFoodComboItem = await Promise.all(
+        foodComboItem.map(async (combo) => {
+          const foodResult = await this.elasticSearch.search({
+            index: FOOD_RESTAURANT_ELASTICSEARCH_INDEX,
+            body: {
+              query: {
+                bool: {
+                  must: [
+                    {
+                      match: {
+                        food_id: {
+                          query: combo.fcbi_food_id,
+                          operator: "and",
+                        },
+                      },
+                    },
+                    {
+                      match: {
+                        food_status: {
+                          query: "enable",
+                          operator: "and",
+                        },
+                      },
+                    },
+                    {
+                      match: {
+                        isDeleted: {
+                          query: 0,
+                          operator: "and",
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          });
+
+          // Lấy kết quả đầu tiên nếu có, nếu không thì gán []
+          combo.fcbi_food = foodResult.hits?.hits[0]?._source || [];
+          return combo;
+        })
+      );
+
+      return updatedFoodComboItem;
+
+    } catch (error) {
+      saveLogSystem({
+        action: 'getComboItemByIdComboIdWithUI',
+        class: 'FoodComboItemsQuery',
+        function: 'getComboItemByIdComboIdWithUI',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }
+

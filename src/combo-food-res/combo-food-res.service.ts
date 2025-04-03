@@ -476,4 +476,25 @@ export class ComboFoodResService {
       throw new ServerErrorDefault(error)
     }
   }
+
+  async getFoodComboBySlug(fcb_slug: string): Promise<FoodComboResEntity> {
+    try {
+      const foodCombo = await this.foodComboResQuery.getFoodComboResBySlug(fcb_slug)
+
+      foodCombo.fcbi_combo = await this.foodComboItemsQuery.getComboItemByIdComboIdWithUI(foodCombo.fcb_id)
+
+      return foodCombo
+    } catch (error) {
+      saveLogSystem({
+        action: 'getFoodComboBySlug',
+        class: 'ComboFoodResService',
+        function: 'getFoodComboBySlug',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }

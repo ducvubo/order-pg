@@ -18,6 +18,7 @@ import { SpecialOfferEntity, SpecialOfferSubscriber } from './special-offers/ent
 import { RateLimiterMiddleware } from './middleware/rate-limiter.middleware'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { APP_GUARD } from '@nestjs/core'
+import { VoucherModule } from './voucher/voucher.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { APP_GUARD } from '@nestjs/core'
     FoodOptionsModule,
     UploadModule,
     SpecialOffersModule,
+    VoucherModule,
   ],
   controllers: [AppController],
   providers: [
