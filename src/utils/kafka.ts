@@ -1,43 +1,38 @@
-import { getKafka } from 'src/config/kafka.config'
-import { ServerErrorDefault } from './errorResponse'
-import { saveLogSystem } from 'src/log/sendLog.els'
-
-const kafka = getKafka().instanceConnect
-const admin = kafka.admin()
-const producer = kafka.producer()
-
-export const createTopic = async (topic: string) => {
-  await admin.connect()
-  const topics = await admin.listTopics()
-  if (!topics.includes(topic)) {
-    console.log(`Topic ${topic} chưa tồn tại. Đang tạo...`)
-    await admin.createTopics({
-      topics: [{ topic: topic }]
-    })
-    console.log(`Topic ${topic} đã được tạo.`)
-  }
-  await admin.disconnect()
+import kafkaInstance from "../config/kafka.config";
+interface KafkaMessage {
+  topic: string;
+  message: string;
 }
 
-export const producerSendMessageToKafka = async (topic: string, messages: any) => {
+interface KafkaConsumerConfig {
+  topic: string;
+  groupId: string;
+}
+
+export const sendMessageToKafka = async ({ topic, message }: KafkaMessage): Promise<void> => {
   try {
-    await createTopic(topic)
-    await producer.connect()
+    const producer = await kafkaInstance.getProducer();
     await producer.send({
-      topic: topic,
-      messages: [{ value: JSON.stringify(messages) }]
-    })
-    await producer.disconnect()
+      topic,
+      messages: [{ value: message }],
+    });
+    console.log(`📤 Tin nhắn đã được gửi: ${message}`);
   } catch (error) {
-    saveLogSystem({
-      action: 'producerSendMessageToKafka',
-      class: 'kafka',
-      function: 'producerSendMessageToKafka',
-      message: error.message,
-      time: new Date(),
-      error: error,
-      type: 'error'
-    })
-    throw new ServerErrorDefault(error)
+    console.error("❌ Producer error:", error);
   }
-}
+};
+
+export const receiveMessageFromKafka = async ({ topic, groupId }: KafkaConsumerConfig): Promise<void> => {
+  try {
+    const consumer = await kafkaInstance.getConsumer(groupId);
+    await consumer.subscribe({ topic, fromBeginning: true });
+
+    await consumer.run({
+      eachMessage: async ({ topic, partition, message }) => {
+        console.log(`📥 Nhận tin nhắn từ ${topic}: ${message.value?.toString()}`);
+      },
+    });
+  } catch (error) {
+    console.error("❌ Consumer error:", error);
+  }
+};

@@ -18,13 +18,21 @@ import { SpecialOfferEntity, SpecialOfferSubscriber } from './special-offers/ent
 import { RateLimiterMiddleware } from './middleware/rate-limiter.middleware'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { APP_GUARD } from '@nestjs/core'
-import { VoucherModule } from './voucher/voucher.module';
+import { InforUserModule } from './infor-user/infor-user.module';
+import { OrderFoodModule } from './order-food/order-food.module';
+import { OrderFoodEntity } from './order-food/entities/order-food.entity'
+import { FoodSnapEntity } from './order-food/entities/food-snap.entity'
+import { OrderFoodItemEntity } from './order-food/entities/order-food-item.entity'
+import { CronModule } from './cron/cron.module';
+import { ScheduleModule } from '@nestjs/schedule'
+import { OrderFoodComboModule } from './order-food-combo/order-food-combo.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true
     }),
+    ScheduleModule.forRoot(),
     // ThrottlerModule.forRoot({
     //   throttlers: [
     //     {
@@ -46,6 +54,7 @@ import { VoucherModule } from './voucher/voucher.module';
         FoodComboResEntity,
         FoodOptionsEntity,
         SpecialOfferEntity,
+        OrderFoodEntity, FoodSnapEntity, OrderFoodItemEntity
       ],
       subscribers: [
         FoodRestaurantSubscriber,
@@ -62,12 +71,14 @@ import { VoucherModule } from './voucher/voucher.module';
     FoodOptionsModule,
     UploadModule,
     SpecialOffersModule,
-    VoucherModule,
+    InforUserModule,
+    OrderFoodModule,
+    CronModule,
+    // OrderFoodComboModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-
   ]
 })
 // export class AppModule {}

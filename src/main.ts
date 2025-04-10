@@ -8,9 +8,9 @@ import { IdUserGuestInterceptor } from './interceptor/guestId.interceptor'
 import { join } from 'path'
 import { initRedis } from './config/redis.config'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
-import { initKafka } from './config/kafka.config'
 import { initElasticsearch } from './config/elasticsearch.config'
-import { TimeoutInterceptor } from './interceptor/timeout.interceptor'
+import { sendMessageToKafka } from './utils/kafka'
+import { initMinio } from './config/minio.config'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
@@ -22,8 +22,12 @@ async function bootstrap() {
 
   initRedis()
   initElasticsearch()
+  sendMessageToKafka({
+    topic: "test",
+    message: `Hello kafka1: ${Math.floor(Math.random() * 100) + 1}`,
+  });
+  initMinio()
   // initKafka()
-  // initMinio()
 
   // app.useGlobalInterceptors(new TimeoutInterceptor())
   app.useGlobalInterceptors(new TransformIntercaptor(reflector))

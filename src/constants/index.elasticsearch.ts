@@ -47,3 +47,8 @@ export const STOCK_OUT_ELASTICSEARCH_INDEX = 'stock-out'
 export const STOCK_OUT_ITEM_ELASTICSEARCH_INDEX = 'stock-out-item'
 
 export const PATH_SYSTEM_ELASTICSEARCH_INDEX = 'path-system'
+
+export const INFOR_USER_ELASTICSEARCH_INDEX = 'infor-user'
+
+export const ORDER_FOOD_ELASTICSEARCH_INDEX = 'order-food'
+export const ORDER_FOOD_ITEM_ELASTICSEARCH_INDEX = 'order-food-item'
