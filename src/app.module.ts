@@ -26,6 +26,9 @@ import { OrderFoodItemEntity } from './order-food/entities/order-food-item.entit
 import { CronModule } from './cron/cron.module';
 import { ScheduleModule } from '@nestjs/schedule'
 import { OrderFoodComboModule } from './order-food-combo/order-food-combo.module';
+import { OrderFoodComboEntity } from './order-food-combo/entities/order-food-combo.entity'
+import { OrderFoodComboItemEntity } from './order-food-combo/entities/order-food-combo-item.entity'
+import { FoodComboSnapEntity } from './order-food-combo/entities/food-combo-snap.entity'
 
 @Module({
   imports: [
@@ -54,7 +57,8 @@ import { OrderFoodComboModule } from './order-food-combo/order-food-combo.module
         FoodComboResEntity,
         FoodOptionsEntity,
         SpecialOfferEntity,
-        OrderFoodEntity, FoodSnapEntity, OrderFoodItemEntity
+        OrderFoodEntity, FoodSnapEntity, OrderFoodItemEntity,
+        OrderFoodComboEntity, OrderFoodComboItemEntity, FoodComboSnapEntity
       ],
       subscribers: [
         FoodRestaurantSubscriber,
@@ -74,7 +78,7 @@ import { OrderFoodComboModule } from './order-food-combo/order-food-combo.module
     InforUserModule,
     OrderFoodModule,
     CronModule,
-    // OrderFoodComboModule,
+    OrderFoodComboModule,
   ],
   controllers: [AppController],
   providers: [

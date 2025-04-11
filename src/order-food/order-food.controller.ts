@@ -20,14 +20,14 @@ export class OrderFoodController {
 
   @Patch('/guest-confirm-order-food')
   @ResponseMessage('Khách hàng đã xác nhận đơn hàng thành công')
-  async guestConfirmOrderFood(@Body('od_id') od_id: string, @Body('od_res_id') od_res_id: string, @Request() req: RequestExpress): Promise<OrderFoodEntity> {
-    return await this.orderFoodService.guestConfirmOrderFood(od_id, od_res_id, req.headers['x-cl-id'] as string);
+  async guestConfirmOrderFood(@Body('od_id') od_id: string, @Body('od_res_id') od_res_id: string): Promise<OrderFoodEntity> {
+    return await this.orderFoodService.guestConfirmOrderFood(od_id, od_res_id);
   }
 
   @Patch('/guest-cancel-order-food')
   @ResponseMessage('Khách hàng đã hủy đơn hàng thành công')
-  async guestCancelOrderFood(@Body('od_id') od_id: string, @Body('od_res_id') od_res_id: string, @Request() req: RequestExpress): Promise<OrderFoodEntity> {
-    return await this.orderFoodService.guestCancelOrderFood(od_id, od_res_id, req.headers['x-cl-id'] as string);
+  async guestCancelOrderFood(@Body('od_id') od_id: string, @Body('od_res_id') od_res_id: string, @Body('od_reason_cancel') od_reason_cancel: string, @Request() req: RequestExpress): Promise<OrderFoodEntity> {
+    return await this.orderFoodService.guestCancelOrderFood(od_id, od_res_id, od_reason_cancel, req.headers['x-cl-id'] as string);
   }
 
   @Patch('/restaurant-confirm-order-food')
@@ -54,8 +54,8 @@ export class OrderFoodController {
   @Patch('/restaurant-cancel-order-food')
   @ResponseMessage('Nhà hàng đã hủy đơn hàng thành công')
   @UseGuards(AccountAuthGuard)
-  async restaurantCancelOrderFood(@Body('od_id') od_id: string, @Acccount() account: IAccount): Promise<OrderFoodEntity> {
-    return await this.orderFoodService.restaurantCancelOrderFood(od_id, account);
+  async restaurantCancelOrderFood(@Body('od_id') od_id: string, @Body('od_reason_cancel') od_reason_cancel, @Acccount() account: IAccount): Promise<OrderFoodEntity> {
+    return await this.orderFoodService.restaurantCancelOrderFood(od_id, od_reason_cancel, account);
   }
 
   @Patch('/guest-receive-order-food')

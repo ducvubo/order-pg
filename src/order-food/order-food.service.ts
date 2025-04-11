@@ -166,7 +166,8 @@ export class OrderFoodService {
         message: JSON.stringify({
           to: od_user_email,
           subject: 'Xác nhận đơn hàng',
-          text: `Bạn nhận được email này vì có một đơn hàng mới từ khách hàng ${od_user_name} với số điện thoại ${od_user_phone} và email ${od_user_email}. Vui lòng xác nhận đơn hàng trong vòng 10 phút. Để xác nhận đơn hàng, vui lòng nhấp vào liên kết sau: <a href="${linkConfirm}">Xác nhận đơn hàng</a>. Nếu bạn không phải là người nhận email này, vui lòng bỏ qua nó.`
+          text: `Bạn nhận được email này vì có một đơn hàng mới từ khách hàng ${od_user_name} với số điện thoại ${od_user_phone} và email ${od_user_email}. Vui lòng xác nhận đơn hàng trong vòng 10 phút. Để xác nhận đơn hàng, vui lòng nhấp vào liên kết bên dưới . Nếu bạn không phải là người nhận email này, vui lòng bỏ qua nó.`,
+          link: linkConfirm,
         }),
       })
 
@@ -188,13 +189,13 @@ export class OrderFoodService {
       await queryRunner.release()
     }
   }
-  async guestConfirmOrderFood(od_id: string, od_res_id: string, id_user_guest: string): Promise<OrderFoodEntity> {
+
+  async guestConfirmOrderFood(od_id: string, od_res_id: string): Promise<OrderFoodEntity> {
     try {
       const orderFood = await this.orderFoodRepository.findOne({
         where: {
           od_id,
           od_res_id,
-          id_user_guest,
           od_status: 'waiting_confirm_customer',
         },
       });
@@ -228,14 +229,14 @@ export class OrderFoodService {
     }
   }
 
-  async guestCancelOrderFood(od_id: string, od_res_id: string, id_user_guest: string): Promise<OrderFoodEntity> {
+  async guestCancelOrderFood(od_id: string, od_res_id: string, od_reason_cancel: string, id_user_guest: string): Promise<OrderFoodEntity> {
     try {
       const orderFood = await this.orderFoodRepository.findOne({
         where: {
           od_id,
           od_res_id,
           id_user_guest,
-          od_status: 'waiting_confirm_customer',
+          od_status: In(['waiting_confirm_customer', 'waiting_confirm_restaurant', 'waiting_shipping']),
         },
       });
 
@@ -256,11 +257,12 @@ export class OrderFoodService {
       }
 
       orderFood.od_status = 'cancel_customer';
+      orderFood.od_reason_cancel = od_reason_cancel;
       orderFood.od_atribute = JSON.stringify([
         ...JSON.parse(orderFood.od_atribute),
         {
           type: 'Khách hàng hủy đơn hàng',
-          description: 'Khách hàng đã hủy đơn hàng',
+          description: `Khách hàng đã hủy đơn hàng, lý do: ${od_reason_cancel}`,
           time: new Date(),
         }
       ]);
@@ -454,8 +456,11 @@ export class OrderFoodService {
     }
   }
 
-  async restaurantCancelOrderFood(od_id: string, account: IAccount): Promise<OrderFoodEntity> {
+  async restaurantCancelOrderFood(od_id: string, od_reason_cancel: string, account: IAccount): Promise<OrderFoodEntity> {
     try {
+      if (!od_reason_cancel) {
+        throw new BadRequestError('Lý do hủy đơn hàng không được để trống');
+      }
       const orderFood = await this.orderFoodRepository.findOne({
         where: {
           od_id,
@@ -481,11 +486,12 @@ export class OrderFoodService {
       }
 
       orderFood.od_status = 'cancel_restaurant';
+      orderFood.od_reason_cancel = od_reason_cancel;
       orderFood.od_atribute = JSON.stringify([
         ...JSON.parse(orderFood.od_atribute),
         {
           type: 'Nhà hàng hủy đơn hàng',
-          description: 'Nhà hàng đã hủy đơn hàng',
+          description: `Nhà hàng đã hủy đơn hàng, lý do: ${od_reason_cancel}`,
           time: new Date(),
         }
       ]);

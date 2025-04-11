@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { FoodComboResEntity } from 'src/combo-food-res/entities/combo-food-res.entity';
 import { FoodComboItemsEntity } from 'src/food-combo-items/entities/food-combo-items.entity';
 import { FoodRestaurantEntity } from 'src/food-restaurant/entities/food-restaurant.entity';
-import { DataSource, Repository } from 'typeorm';
+import { Between, DataSource, In, LessThanOrEqual, Like, MoreThanOrEqual, Repository } from 'typeorm';
 import { OrderFoodComboEntity } from './entities/order-food-combo.entity';
 import { OrderFoodComboItemEntity } from './entities/order-food-combo-item.entity';
 import { FoodComboSnapEntity } from './entities/food-combo-snap.entity';
@@ -12,6 +12,8 @@ import { saveLogSystem } from 'src/log/sendLog.els';
 import { BadRequestError, ServerErrorDefault } from 'src/utils/errorResponse';
 import { sendMessageToKafka } from 'src/utils/kafka';
 import { text } from 'stream/consumers';
+import { IAccount } from 'src/guard/interface/account.interface';
+import { ResultPagination } from 'src/interface/resultPagination.interface';
 
 @Injectable()
 export class OrderFoodComboService {
@@ -23,24 +25,21 @@ export class OrderFoodComboService {
     // private readonly foodComboResRepository: Repository<FoodComboResEntity>,
     // @InjectRepository(FoodComboItemsEntity)
     // private readonly foodComboItemsRepository: Repository<FoodComboItemsEntity>,
-    // @InjectRepository(OrderFoodComboEntity)
-    // private readonly orderFoodComboRepository: Repository<OrderFoodComboEntity>,
+    @InjectRepository(OrderFoodComboEntity)
+    private readonly orderFoodComboRepository: Repository<OrderFoodComboEntity>,
     // @InjectRepository(OrderFoodComboItemEntity)
-    // private readonly orderFoodComboItemRepository: Repository<OrderFoodComboItemEntity>,
+    // private readonly orderFoodComboComboItemRepository: Repository<OrderFoodComboItemEntity>,
     // @InjectRepository(FoodComboSnapEntity)
     // private readonly foodComboSnapRepository: Repository<FoodComboSnapEntity>,
   ) { }
 
   async createOrderFoodCombo(createOrderFoodComboDto: CreateOrderFoodComboDto, id_user_guest: string): Promise<OrderFoodComboEntity> {
     const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
     try {
       await queryRunner.connect();
       await queryRunner.startTransaction();
       const currentTime = new Date();
-      currentTime.setHours(currentTime.getHours() + 7);
+      // currentTime.setHours(currentTime.getHours() + 7);
 
       const { od_cb_res_id, od_cb_user_name, od_cb_user_phone, od_cb_user_email, od_cb_user_address, od_cb_user_province, od_cb_user_district, od_cb_user_ward, od_cb_user_note, od_cb_link_confirm, od_cb_price_shipping, od_cb_type_shipping, od_cb_user_id, order_food_combo_items } = createOrderFoodComboDto;
 
@@ -129,14 +128,15 @@ export class OrderFoodComboService {
         })
       )
 
-      const linkConfirm = `${od_cb_link_confirm}?od_id=${newOrderFoodCombo.od_cb_id}&od_res_id=${od_cb_res_id}`
+      const linkConfirm = `${od_cb_link_confirm}?od_cb_id=${newOrderFoodCombo.od_cb_id}&od_cb_res_id=${od_cb_res_id}`
       console.log('linkConfirm', linkConfirm)
       sendMessageToKafka({
         topic: 'CREATE_ORDER_FOOD_COMBO',
         message: JSON.stringify({
           to: od_cb_user_email,
           subject: 'Xác nhận đặt hàng',
-          text: `Bạn nhận được email này vì có một đơn hàng mới từ khách hàng ${od_cb_user_name} với số điện thoại ${od_cb_user_phone} và email ${od_cb_user_email}. Vui lòng xác nhận đơn hàng trong vòng 10 phút. Để xác nhận đơn hàng, vui lòng nhấp vào liên kết sau: <a href="${linkConfirm}">Xác nhận đơn hàng</a>. Nếu bạn không phải là người nhận email này, vui lòng bỏ qua nó.`,
+          text: `Bạn nhận được email này vì có một đơn hàng mới từ khách hàng ${od_cb_user_name} với số điện thoại ${od_cb_user_phone} và email ${od_cb_user_email}. Vui lòng xác nhận đơn hàng trong vòng 10 phút. Để xác nhận đơn hàng, vui lòng nhấp vào liên kết bên dưới. Nếu bạn không phải là người nhận email này, vui lòng bỏ qua nó.`,
+          link: linkConfirm,
         })
       })
 
@@ -156,6 +156,846 @@ export class OrderFoodComboService {
       throw new ServerErrorDefault(error)
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  async guestConfirmOrderFoodCombo(od_cb_id: string, od_cb_res_id: string): Promise<OrderFoodComboEntity> {
+    try {
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id,
+          od_cb_status: 'waiting_confirm_customer',
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      orderFoodCombo.od_cb_status = 'waiting_confirm_restaurant';
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Khách hàng xác nhận đơn hàng',
+          description: 'Khách hàng đã xác nhận đơn hàng, chờ nhà hàng xác nhận đơn hàng',
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'guestConfirmOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'guestConfirmOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  async guestCancelOrderFoodCombo(od_cb_id: string, od_cb_res_id: string, od_cb_reason_cancel: string, id_user_guest: string): Promise<OrderFoodComboEntity> {
+    try {
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id,
+          id_user_guest,
+          od_cb_status: 'waiting_confirm_customer',
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'shipping') {
+        throw new BadRequestError('Đơn hàng đang được giao, không thể hủy đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'delivered_customer') {
+        throw new BadRequestError('Đơn hàng đã được giao, không thể hủy đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'received_customer') {
+        throw new BadRequestError('Đơn hàng đã được xác nhận, không thể hủy đơn hàng');
+      }
+
+      orderFoodCombo.od_cb_status = 'cancel_customer';
+      orderFoodCombo.od_cb_reason_cancel = od_cb_reason_cancel;
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Khách hàng hủy đơn hàng',
+          description: `Khách hàng đã hủy đơn hàng, lý do: ${od_cb_reason_cancel}`,
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'guestCancelOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'guestCancelOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  async restaurantConfirmOrderFoodCombo(od_cb_id: string, account: IAccount): Promise<OrderFoodComboEntity> {
+    try {
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id: account.account_restaurant_id,
+          od_cb_status: 'waiting_confirm_restaurant',
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'shipping') {
+        throw new BadRequestError('Đơn hàng đang được giao, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'delivered_customer') {
+        throw new BadRequestError('Đơn hàng đã được giao, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'received_customer') {
+        throw new BadRequestError('Đơn hàng đã được xác nhận, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'cancel_customer') {
+        throw new BadRequestError('Đơn hàng đã bị hủy, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'cancel_restaurant') {
+        throw new BadRequestError('Đơn hàng đã bị hủy bởi nhà hàng, không thể xác nhận đơn hàng');
+      }
+
+      orderFoodCombo.od_cb_status = 'waiting_shipping';
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Nhà hàng xác nhận đơn hàng',
+          description: 'Nhà hàng đã xác nhận đơn hàng, chờ giao hàng',
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'restaurantConfirmOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'restaurantConfirmOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  async restaurantConfirmShippingOrderFoodCombo(od_cb_id: string, account: IAccount): Promise<OrderFoodComboEntity> {
+    try {
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id: account.account_restaurant_id,
+          od_cb_status: 'waiting_shipping',
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'shipping') {
+        throw new BadRequestError('Đơn hàng đang được giao, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'delivered_customer') {
+        throw new BadRequestError('Đơn hàng đã được giao, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'received_customer') {
+        throw new BadRequestError('Đơn hàng đã được xác nhận, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'cancel_customer') {
+        throw new BadRequestError('Đơn hàng đã bị hủy, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'cancel_restaurant') {
+        throw new BadRequestError('Đơn hàng đã bị hủy bởi nhà hàng, không thể xác nhận đơn hàng');
+      }
+
+      orderFoodCombo.od_cb_status = 'shipping';
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Nhà hàng xác nhận đang giao hàng',
+          description: 'Nhà hàng đã xác nhận đang giao hàng',
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'restaurantConfirmShippingOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'restaurantConfirmShippingOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  // delivered_customer
+  async restaurantDeliveredOrderFoodCombo(od_cb_id: string, account: IAccount): Promise<OrderFoodComboEntity> {
+    try {
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id: account.account_restaurant_id,
+          od_cb_status: 'shipping',
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'delivered_customer') {
+        throw new BadRequestError('Đơn hàng đã được giao, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'received_customer') {
+        throw new BadRequestError('Đơn hàng đã được xác nhận, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'cancel_customer') {
+        throw new BadRequestError('Đơn hàng đã bị hủy, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'cancel_restaurant') {
+        throw new BadRequestError('Đơn hàng đã bị hủy bởi nhà hàng, không thể xác nhận đơn hàng');
+      }
+
+      orderFoodCombo.od_cb_status = 'delivered_customer';
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Nhà hàng xác nhận đã giao hàng đến khách hàng',
+          description: 'Nhà hàng đã xác nhận đã giao hàng đến khách hàng',
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'restaurantDeliveredOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'restaurantDeliveredOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  async restaurantCancelOrderFoodCombo(od_cb_id: string, od_cb_reason_cancel: string, account: IAccount): Promise<OrderFoodComboEntity> {
+    try {
+      if (!od_cb_reason_cancel) {
+        throw new BadRequestError('Vui lòng nhập lý do hủy đơn hàng');
+      }
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id: account.account_restaurant_id,
+          od_cb_status: In(['waiting_confirm_restaurant', 'waiting_shipping']),
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'shipping') {
+        throw new BadRequestError('Đơn hàng đang được giao, không thể hủy đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'delivered_customer') {
+        throw new BadRequestError('Đơn hàng đã được giao, không thể hủy đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'received_customer') {
+        throw new BadRequestError('Đơn hàng đã được xác nhận, không thể hủy đơn hàng');
+      }
+
+      orderFoodCombo.od_cb_status = 'cancel_restaurant';
+      orderFoodCombo.od_cb_reason_cancel = od_cb_reason_cancel;
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Nhà hàng hủy đơn hàng',
+          description: `Nhà hàng đã hủy đơn hàng, lý do: ${od_cb_reason_cancel}`,
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'restaurantCancelOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'restaurantCancelOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  async guestReceivedOrderFoodCombo(od_cb_id: string, od_cb_res_id: string, id_user_guest: string): Promise<OrderFoodComboEntity> {
+    try {
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id,
+          id_user_guest,
+          od_cb_status: 'delivered_customer',
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      // if (orderFoodCombo.od_cb_status === 'delivered_customer') {
+      //   throw new BadRequestError('Đơn hàng đã được giao, không thể xác nhận đơn hàng');
+      // }
+
+      if (orderFoodCombo.od_cb_status === 'received_customer') {
+        throw new BadRequestError('Đơn hàng đã được xác nhận, không thể xác nhận đơn hàng');
+      }
+
+      orderFoodCombo.od_cb_status = 'received_customer';
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Khách hàng xác nhận đã nhận đơn hàng',
+          description: 'Khách hàng đã xác nhận đã nhận đơn hàng',
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'guestReceivedOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'guestReceivedOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  async guestComplaintOrderFoodCombo(od_cb_id: string, od_cb_res_id: string, id_user_guest: string, complaint: string): Promise<OrderFoodComboEntity> {
+    try {
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id,
+          id_user_guest,
+          od_cb_status: 'received_customer'
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'complaint') {
+        throw new BadRequestError('Đơn hàng đã khiếu nại, không thể khiếu nại đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'complaint_done') {
+        throw new BadRequestError('Đơn hàng đã khiếu nại và đã được giải quyết, không thể khiếu nại đơn hàng');
+      }
+
+      orderFoodCombo.od_cb_status = 'complaint';
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Khách hàng khiếu nại đơn hàng',
+          description: `Khách hàng đã khiếu nại đơn hàng`,
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'guestComplaintOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'guestComplaintOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  async guestComplaintDoneOrderFoodCombo(od_cb_id: string, od_cb_res_id: string, id_user_guest: string): Promise<OrderFoodComboEntity> {
+    try {
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id,
+          id_user_guest,
+          od_cb_status: 'complaint'
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'complaint_done') {
+        throw new BadRequestError('Đơn hàng đã khiếu nại và đã được giải quyết, không thể khiếu nại đơn hàng');
+      }
+
+      orderFoodCombo.od_cb_status = 'complaint_done';
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Khách hàng xác nhận đã giải quyết khiếu nại',
+          description: 'Khách hàng đã xác nhận đã giải quyết khiếu nại',
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'guestComplaintDoneOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'guestComplaintDoneOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  async guestFeedbackOrderFoodCombo(od_cb_id: string, od_cb_res_id: string, id_user_guest: string, od_cb_feed_star: 1 | 2 | 3 | 4 | 5, od_cb_feed_content: string): Promise<OrderFoodComboEntity> {
+    try {
+      if (!od_cb_feed_star) {
+        throw new BadRequestError('Bạn chưa đánh giá đơn hàng, vui lòng thử lại sau');
+      }
+      if (!od_cb_feed_content) {
+        throw new BadRequestError('Bạn chưa nhập nội dung đánh giá đơn hàng, vui lòng thử lại sau');
+      }
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id,
+          id_user_guest,
+          od_cb_status: In(['complaint_done', 'received_customer'])
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      if (orderFoodCombo.od_cb_feed_star) {
+        throw new BadRequestError('Đơn hàng đã được đánh giá, không thể đánh giá lại đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'complaint') {
+        throw new BadRequestError('Đơn hàng đang khiếu nại, không thể đánh giá đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'waiting_confirm_customer')
+        throw new BadRequestError('Đơn hàng đang chờ xác nhận, không thể đánh giá đơn hàng');
+      if (orderFoodCombo.od_cb_status === 'waiting_confirm_restaurant')
+        throw new BadRequestError('Đơn hàng đang chờ xác nhận, không thể đánh giá đơn hàng');
+      if (orderFoodCombo.od_cb_status === 'waiting_shipping')
+        throw new BadRequestError('Đơn hàng đang chờ giao hàng, không thể đánh giá đơn hàng');
+      if (orderFoodCombo.od_cb_status === 'shipping')
+        throw new BadRequestError('Đơn hàng đang giao hàng, không thể đánh giá đơn hàng');
+      if (orderFoodCombo.od_cb_status === 'delivered_customer')
+        throw new BadRequestError('Đơn hàng đã giao hàng, không thể đánh giá đơn hàng');
+      if (orderFoodCombo.od_cb_status === 'cancel_customer')
+        throw new BadRequestError('Đơn hàng đã bị hủy, không thể đánh giá đơn hàng');
+      if (orderFoodCombo.od_cb_status === 'cancel_restaurant')
+        throw new BadRequestError('Đơn hàng đã bị hủy, không thể đánh giá đơn hàng');
+
+      orderFoodCombo.od_cb_feed_star = od_cb_feed_star;
+      orderFoodCombo.od_cb_feed_content = od_cb_feed_content;
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Khách hàng đánh giá đơn hàng',
+          description: `Khách hàng đã đánh giá đơn hàng với ${od_cb_feed_star} sao và nội dung là ${od_cb_feed_content}`,
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'guestFeedbackOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'guestFeedbackOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  async restaurantFeedbackOrderFoodCombo(od_cb_id: string, od_cb_feed_reply: string, account: IAccount): Promise<OrderFoodComboEntity> {
+    try {
+      if (!od_cb_feed_reply) {
+        throw new BadRequestError('Bạn chưa nhập nội dung phản hồi đơn hàng, vui lòng thử lại sau');
+      }
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id: account.account_restaurant_id,
+          od_cb_feed_star: In([1, 2, 3, 4, 5]),
+          od_cb_feed_reply: null
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      if (!orderFoodCombo.od_cb_feed_star) {
+        throw new BadRequestError('Đơn hàng chưa được đánh giá, không thể phản hồi đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_feed_reply) {
+        throw new BadRequestError('Đơn hàng đã được phản hồi, không thể phản hồi lại đơn hàng');
+      }
+
+      orderFoodCombo.od_cb_feed_reply = od_cb_feed_reply;
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Nhà hàng phản hồi đánh giá của khách hàng',
+          description: `Nhà hàng đã phản hồi đánh giá của khách hàng với nội dung là ${od_cb_feed_reply}`,
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'restaurantFeedbackOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'restaurantFeedbackOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  async restaurantUpdateViewFeedbackOrderFoodCombo(od_cb_id: string, od_cb_feed_view: 'active' | 'disable', account: IAccount): Promise<OrderFoodComboEntity> {
+    try {
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id: account.account_restaurant_id,
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      if (!orderFoodCombo.od_cb_feed_star) {
+        throw new BadRequestError('Đơn hàng chưa được đánh giá, không thể phản hồi đơn hàng');
+      }
+
+      if (!orderFoodCombo.od_cb_feed_reply) {
+        throw new BadRequestError('Đơn hàng chưa được phản hồi, không thể cập nhật trạng thái');
+      }
+
+      orderFoodCombo.od_cb_feed_view = od_cb_feed_view;
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'restaurantUpdateViewFeedbackOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'restaurantUpdateViewFeedbackOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+
+  async getListOrderFoodComboRestaurantPagination(
+    {
+      fromDate,
+      keyword,
+      od_cb_status,
+      pageIndex,
+      pageSize = 10,
+      toDate,
+    }: {
+      pageSize?: number;
+      pageIndex: number;
+      keyword: string;
+      od_cb_status:
+      | 'waiting_confirm_customer'
+      | 'over_time_customer'
+      | 'waiting_confirm_restaurant'
+      | 'waiting_shipping'
+      | 'shipping'
+      | 'delivered_customer'
+      | 'received_customer'
+      | 'cancel_customer'
+      | 'cancel_restaurant'
+      | 'complaint'
+      | 'complaint_done'
+      | 'all';
+      toDate: string;
+      fromDate: string;
+    },
+    account: IAccount
+  ): Promise<ResultPagination<OrderFoodComboEntity>> {
+    try {
+      const whereConditions: any = {
+        od_cb_res_id: account.account_restaurant_id,
+      };
+
+      if (od_cb_status !== 'all') {
+        whereConditions.od_cb_status = od_cb_status;
+      }
+
+      if (fromDate || toDate) {
+        const from = fromDate ? new Date(fromDate) : null;
+        const to = toDate ? new Date(toDate) : null;
+
+        if (from && to && !isNaN(from.getTime()) && !isNaN(to.getTime())) {
+          const start = from < to ? from : to;
+          const end = from < to ? to : from;
+          whereConditions.od_cb_created_at = Between(start, end);
+        } else if (from && !isNaN(from.getTime())) {
+          whereConditions.od_cb_created_at = MoreThanOrEqual(from);
+        } else if (to && !isNaN(to.getTime())) {
+          whereConditions.od_cb_created_at = LessThanOrEqual(to);
+        }
+      }
+
+      if (keyword) {
+        whereConditions.od_user_name = Like(`%${keyword}%`);
+        whereConditions.od_user_phone = Like(`%${keyword}%`);
+        whereConditions.od_user_email = Like(`%${keyword}%`);
+        whereConditions.od_user_address = Like(`%${keyword}%`);
+        whereConditions.od_user_note = Like(`%${keyword}%`);
+      }
+
+      const orderFoodCombo = await this.orderFoodComboRepository.find({
+        where: whereConditions,
+        order: {
+          od_cb_created_at: 'DESC',
+        },
+        skip: (pageIndex - 1) * pageSize,
+        take: pageSize,
+        relations: ['orderItems', 'orderItems.foodComboSnap'],
+      });
+
+      const total = await this.orderFoodComboRepository.count({
+        where: whereConditions,
+      });
+
+      const totalPage = Math.ceil(total / pageSize);
+      const result: ResultPagination<OrderFoodComboEntity> = {
+        meta: {
+          current: pageIndex,
+          pageSize,
+          totalItem: total,
+          totalPage
+        },
+        result: orderFoodCombo,
+      };
+
+      return result;
+    } catch (error) {
+      saveLogSystem({
+        action: 'getListOrderFoodComboRestaurantPagination',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'getListOrderFoodComboRestaurantPagination',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
+  async getListOrderFoodComboGuestPagination(
+    {
+      id_user_guest,
+      toDate,
+      fromDate,
+      keyword,
+      od_cb_status,
+      pageIndex,
+      pageSize = 10,
+    }: {
+      id_user_guest: string;
+      pageSize?: number;
+      pageIndex: number;
+      keyword: string;
+      od_cb_status:
+      | 'waiting_confirm_customer'
+      | 'over_time_customer'
+      | 'waiting_confirm_restaurant'
+      | 'waiting_shipping'
+      | 'shipping'
+      | 'delivered_customer'
+      | 'received_customer'
+      | 'cancel_customer'
+      | 'cancel_restaurant'
+      | 'complaint'
+      | 'complaint_done'
+      | 'all';
+      toDate: string;
+      fromDate: string;
+    }): Promise<{
+      meta: {
+        pageIndex: number;
+        pageSize: number;
+        totalItem: number;
+        totalPage: number;
+      };
+      result: OrderFoodComboEntity[]
+    }> {
+    try {
+      const whereConditions: any = {
+        id_user_guest,
+      };
+
+      if (od_cb_status !== 'all') {
+        whereConditions.od_cb_status = od_cb_status;
+      }
+
+      if (fromDate || toDate) {
+        const from = fromDate ? new Date(fromDate) : null;
+        const to = toDate ? new Date(toDate) : null;
+
+        if (from && to && !isNaN(from.getTime()) && !isNaN(to.getTime())) {
+          const start = from < to ? from : to;
+          const end = from < to ? to : from;
+          whereConditions.od_cb_created_at = Between(start, end);
+        } else if (from && !isNaN(from.getTime())) {
+          whereConditions.od_cb_created_at = MoreThanOrEqual(from);
+        } else if (to && !isNaN(to.getTime())) {
+          whereConditions.od_cb_created_at = LessThanOrEqual(to);
+        }
+      }
+
+      if (keyword) {
+        whereConditions.od_user_name = Like(`%${keyword}%`);
+        whereConditions.od_user_phone = Like(`%${keyword}%`);
+        whereConditions.od_user_email = Like(`%${keyword}%`);
+        whereConditions.od_user_address = Like(`%${keyword}%`);
+        whereConditions.od_user_note = Like(`%${keyword}%`);
+      }
+
+      const orderFoodCombo = await this.orderFoodComboRepository.find({
+        where: whereConditions,
+        order: {
+          od_cb_created_at: 'DESC',
+        },
+        skip: (pageIndex - 1) * pageSize,
+        take: pageSize,
+        relations: ['orderItems', 'orderItems.foodComboSnap'],
+      });
+
+      const total = await this.orderFoodComboRepository.count({
+        where: whereConditions,
+      });
+
+      const totalPage = Math.ceil(total / pageSize);
+      const result: {
+        meta: {
+          pageIndex: number;
+          pageSize: number;
+          totalItem: number;
+          totalPage: number;
+        };
+        result: OrderFoodComboEntity[]
+      } = {
+        meta: {
+          pageIndex: pageIndex,
+          pageSize,
+          totalItem: total,
+          totalPage
+        },
+        result: orderFoodCombo,
+      };
+
+      return result;
+    } catch (error) {
+      saveLogSystem({
+        action: 'getListOrderFoodComboGuestPagination',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'getListOrderFoodComboGuestPagination',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
     }
   }
 

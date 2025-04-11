@@ -84,6 +84,9 @@ export class OrderFoodEntity extends SampleEntity {
   @Column('varchar', { length: 255, nullable: true })
   od_feed_reply?: string
 
+  @Column('varchar', { length: 255, nullable: true })
+  od_reason_cancel?: string
+
   @Column('varchar', { length: 255, default: 'disable' })
   od_feed_view?: 'active' | 'disable'
 
