@@ -7,6 +7,7 @@ import { OrderFoodComboEntity } from './entities/order-food-combo.entity';
 import { AccountAuthGuard } from 'src/guard/account.guard';
 import { IAccount } from 'src/guard/interface/account.interface';
 import { ResultPagination } from 'src/interface/resultPagination.interface';
+import { GetStatsDto } from 'src/order-food/dto/get-stats.dto';
 
 @Controller('order-food-combo')
 export class OrderFoodComboController {
@@ -138,5 +139,33 @@ export class OrderFoodComboController {
     result: OrderFoodComboEntity[]
   }> {
     return await this.orderFoodComboService.getListOrderFoodComboGuestPagination({ pageSize: +pageSize, pageIndex: +pageIndex, keyword, od_cb_status, toDate, fromDate, id_user_guest: req.headers['x-cl-id'] as string });
+  }
+
+  @Get('total-revenue')
+  @UseGuards(AccountAuthGuard)
+  @ResponseMessage('Lấy tổng doanh thu thành công')
+  async getTotalComboRevenue(@Query() dto: GetStatsDto, @Acccount() account: IAccount) {
+    return this.orderFoodComboService.getTotalComboRevenue(dto, account);
+  }
+
+  @Get('revenue-trends')
+  @UseGuards(AccountAuthGuard)
+  @ResponseMessage('Lấy tổng doanh thu thành công')
+  async getComboRevenueTrends(@Query() dto: GetStatsDto, @Acccount() account: IAccount) {
+    return this.orderFoodComboService.getComboRevenueTrends(dto, account);
+  }
+
+  @Get('top-combos')
+  @UseGuards(AccountAuthGuard)
+  @ResponseMessage('Lấy tổng doanh thu thành công')
+  async getTopCombos(@Query() dto: GetStatsDto, @Acccount() account: IAccount) {
+    return this.orderFoodComboService.getTopCombos(dto, account);
+  }
+
+  @Get('recent-orders')
+  @UseGuards(AccountAuthGuard)
+  @ResponseMessage('Lấy tổng doanh thu thành công')
+  async getRecentComboOrders(@Query() dto: GetStatsDto, @Acccount() account: IAccount) {
+    return this.orderFoodComboService.getRecentComboOrders(dto, account);
   }
 }

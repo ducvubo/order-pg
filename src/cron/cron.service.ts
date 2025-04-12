@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { OrderFoodComboEntity } from 'src/order-food-combo/entities/order-food-combo.entity';
 import { OrderFoodEntity } from 'src/order-food/entities/order-food.entity';
 import { DataSource, LessThan } from 'typeorm';
 
@@ -20,6 +21,7 @@ export class CronService {
       const tenMinutesAgo = new Date(currentTime);
       tenMinutesAgo.setMinutes(tenMinutesAgo.getMinutes() - 10);
 
+      //OrderFood
       const overdueOrders = await queryRunner.manager.find(OrderFoodEntity, {
         where: {
           od_status: 'waiting_confirm_customer',
@@ -43,6 +45,33 @@ export class CronService {
           })
         );
         console.log(`Updated ${overdueOrders.length} orders to 'over_time_customer'`);
+      } else {
+      }
+
+      //OrderFoodCombo
+      const overdueOrdersCombo = await queryRunner.manager.find(OrderFoodComboEntity, {
+        where: {
+          od_cb_status: 'waiting_confirm_customer',
+          od_cb_created_at: LessThan(tenMinutesAgo),
+        },
+      });
+
+      if (overdueOrdersCombo.length > 0) {
+        await Promise.all(
+          overdueOrdersCombo.map(async (order) => {
+            order.od_cb_status = 'over_time_customer';
+            order.od_cb_atribute = JSON.stringify([
+              ...(JSON.parse(order.od_cb_atribute || '[]')),
+              {
+                type: 'Quá hạn xác nhận',
+                description: 'Đơn hàng đã quá 10 phút mà không được xác nhận bởi khách hàng',
+                time: currentTime,
+              },
+            ]);
+            await queryRunner.manager.save(OrderFoodComboEntity, order);
+          })
+        );
+        console.log(`Updated ${overdueOrdersCombo.length} combo orders to 'over_time_customer'`);
       } else {
       }
 

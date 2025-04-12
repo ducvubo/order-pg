@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Query, Request, Res, UseGuards } from '@nestjs/common';
 import { OrderFoodService } from './order-food.service';
 import { Acccount, ResponseMessage } from 'src/decorator/customize';
 import { CreateOrderFoodDto } from './dto/create-order-food.dto';
@@ -7,6 +7,7 @@ import { OrderFoodEntity } from './entities/order-food.entity';
 import { AccountAuthGuard } from 'src/guard/account.guard';
 import { IAccount } from 'src/guard/interface/account.interface';
 import { ResultPagination } from 'src/interface/resultPagination.interface';
+import { GetStatsDto } from './dto/get-stats.dto';
 
 @Controller('order-food')
 export class OrderFoodController {
@@ -155,5 +156,40 @@ export class OrderFoodController {
     @Acccount() account: IAccount
   ): Promise<OrderFoodEntity> {
     return await this.orderFoodService.getOrderFoodById(od_id, account);
+  }
+
+  @Get('total-revenue')
+  @UseGuards(AccountAuthGuard)
+  @ResponseMessage('Lấy tổng doanh thu thành công')
+  async getTotalRevenue(@Query() dto: GetStatsDto, @Acccount() account: IAccount) {
+    return this.orderFoodService.getTotalRevenue(dto, account);
+  }
+
+  @Get('revenue-trends')
+  @UseGuards(AccountAuthGuard)
+  @ResponseMessage('Lấy tổng doanh thu thành công')
+  async getRevenueTrends(@Query() dto: GetStatsDto, @Acccount() account: IAccount) {
+    return this.orderFoodService.getRevenueTrends(dto, account);
+  }
+
+  @Get('top-foods')
+  @UseGuards(AccountAuthGuard)
+  @ResponseMessage('Lấy tổng doanh thu thành công')
+  async getTopFoods(@Query() dto: GetStatsDto, @Acccount() account: IAccount) {
+    return this.orderFoodService.getTopFoods(dto, account);
+  }
+
+  @Get('recent-orders')
+  @UseGuards(AccountAuthGuard)
+  @ResponseMessage('Lấy tổng doanh thu thành công')
+  async getRecentOrders(@Query() dto: GetStatsDto, @Acccount() account: IAccount) {
+    return this.orderFoodService.getRecentOrders(dto, account);
+  }
+
+  @Get('status-distribution')
+  @UseGuards(AccountAuthGuard)
+  @ResponseMessage('Lấy tổng doanh thu thành công')
+  async getOrderStatusDistribution(@Query() dto: GetStatsDto, @Acccount() account: IAccount) {
+    return this.orderFoodService.getOrderStatusDistribution(dto, account);
   }
 }

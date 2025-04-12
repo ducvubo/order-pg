@@ -12,21 +12,18 @@ import { sendMessageToKafka } from 'src/utils/kafka';
 import { IAccount } from 'src/guard/interface/account.interface';
 import { ResultPagination } from 'src/interface/resultPagination.interface';
 import { InjectRepository } from '@nestjs/typeorm';
+import { GetStatsDto } from './dto/get-stats.dto';
 
 @Injectable()
 export class OrderFoodService {
   constructor(
     private readonly dataSource: DataSource,
-    // @InjectRepository(FoodRestaurantEntity)
-    // private readonly foodRestaurantRepository: Repository<FoodRestaurantEntity>,
     @InjectRepository(OrderFoodEntity)
     private readonly orderFoodRepository: Repository<OrderFoodEntity>,
-    // @InjectRepository(OrderFoodItemEntity)
-    // private readonly orderFoodItemRepository: Repository<OrderFoodItemEntity>,
-    // @InjectRepository(FoodOptionsEntity)
-    // private readonly foodOptionsRepository: Repository<FoodOptionsEntity>,
-    // @InjectRepository(FoodSnapEntity)
-    // private readonly foodSnapRepository: Repository<FoodSnapEntity>,
+    @InjectRepository(OrderFoodItemEntity)
+    private readonly orderFoodItemRepository: Repository<OrderFoodItemEntity>,
+    @InjectRepository(FoodSnapEntity)
+    private readonly foodSnapRepository: Repository<FoodSnapEntity>,
   ) { }
 
   async createOrderFood(createOrderFoodDto: CreateOrderFoodDto, id_user_guest: string): Promise<OrderFoodEntity> {
@@ -1085,969 +1082,169 @@ export class OrderFoodService {
       throw new ServerErrorDefault(error);
     }
   }
+
+  private buildDateFilter(dto: GetStatsDto) {
+    const { startDate, endDate } = dto;
+    if (!startDate && !endDate) return undefined;
+    return Between(
+      startDate ? new Date(startDate) : new Date(0),
+      endDate ? new Date(endDate) : new Date(),
+    );
+  }
+
+  async getTotalRevenue(dto: GetStatsDto, account: IAccount) {
+    const orders = await this.orderFoodRepository
+      .createQueryBuilder('order')
+      .innerJoinAndSelect('order.orderItems', 'items')
+      .innerJoinAndSelect('items.foodSnap', 'foodSnap')
+      .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+      .andWhere('order.od_status = :status', { status: 'received_customer' })
+      .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
+        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+        end: dto.endDate ? new Date(dto.endDate) : new Date(),
+      })
+      .getMany();
+
+    const totalRevenue = orders.reduce((sum, order) => {
+      const orderTotal = order.orderItems.reduce((itemSum, item) => {
+        return itemSum + (item.od_it_quantity * item.foodSnap.fsnp_price);
+      }, 0);
+      return sum + orderTotal;
+    }, 0);
+
+    return { totalRevenue };
+  }
+
+  // API 2: Revenue Trends (Daily)
+  async getRevenueTrends(dto: GetStatsDto, account: IAccount) {
+    const orders = await this.orderFoodRepository
+      .createQueryBuilder('order')
+      .innerJoinAndSelect('order.orderItems', 'items')
+      .innerJoinAndSelect('items.foodSnap', 'foodSnap')
+      .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+      .andWhere('order.od_type_shipping = :status', { status: 'GHTK' })
+      .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
+        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+        end: dto.endDate ? new Date(dto.endDate) : new Date(),
+      })
+      .getMany();
+
+    const trendsMap = new Map<string, number>();
+    orders.forEach((order) => {
+      const date = order.od_created_at.toISOString().split('T')[0];
+      const orderTotal = order.orderItems.reduce((sum, item) => {
+        return sum + (item.od_it_quantity * item.foodSnap.fsnp_price);
+      }, 0);
+      trendsMap.set(date, (trendsMap.get(date) || 0) + orderTotal);
+    });
+
+    const trends = Array.from(trendsMap.entries()).map(([date, revenue]) => ({
+      date,
+      revenue,
+    })).sort((a, b) => a.date.localeCompare(b.date));
+
+    return trends; // Format: [{ date: '2025-04-01', revenue: 12000000 }, ...]
+  }
+
+  // API 3: Top Online Foods
+  async getTopFoods(dto: GetStatsDto, account: IAccount) {
+    const items = await this.orderFoodItemRepository
+      .createQueryBuilder('item')
+      .innerJoin('item.order', 'order')
+      .innerJoin('item.foodSnap', 'foodSnap')
+      .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+      .andWhere('order.od_type_shipping = :status', { status: 'GHTK' })
+      .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
+        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+        end: dto.endDate ? new Date(dto.endDate) : new Date(),
+      })
+      .groupBy('foodSnap.fsnp_id, foodSnap.fsnp_name')
+      .select([
+        'foodSnap.fsnp_name AS name',
+        'SUM(item.od_it_quantity) AS orders',
+        'SUM(item.od_it_quantity * foodSnap.fsnp_price) AS revenue',
+      ])
+      .orderBy('orders', 'DESC')
+      .limit(5)
+      .getRawMany();
+
+    const data = items.map((item) => ({
+      name: item.NAME,
+      orders: parseInt(item.ORDERS),
+      revenue: parseFloat(item.REVENUE),
+    })); // Format: [{ name: 'Phở bò online', orders: 120, revenue: 3600000 }, ...]
+    return data;
+  }
+
+  // API 4: Recent Online Orders
+  async getRecentOrders(dto: GetStatsDto, account: IAccount) {
+    const orders = await this.orderFoodRepository
+      .createQueryBuilder('order')
+      .innerJoinAndSelect('order.orderItems', 'items')
+      .innerJoinAndSelect('items.foodSnap', 'foodSnap')
+      .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+      .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
+        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+        end: dto.endDate ? new Date(dto.endDate) : new Date(),
+      })
+      .orderBy('order.od_created_at', 'DESC')
+      .take(5)
+      .getMany();
+
+    const data = orders.map((order) => ({
+      id: order.od_id,
+      customer: order.od_user_name || 'Khách vãng lai',
+      total: order.orderItems.reduce((sum, item) => {
+        return sum + (item.od_it_quantity * item.foodSnap.fsnp_price);
+      }, 0),
+      status: {
+        waiting_confirm_customer: 'Chờ xác nhận khách hàng',
+        over_time_customer: 'Quá hạn xác nhận',
+        waiting_confirm_restaurant: 'Chờ nhà hàng xác nhận',
+        waiting_shipping: 'Chờ giao hàng',
+        shipping: 'Đang giao hàng',
+        delivered_customer: 'Đã giao hàng',
+        received_customer: 'Hoàn thành',
+        cancel_customer: 'Khách hủy',
+        cancel_restaurant: 'Nhà hàng hủy',
+        complaint: 'Khiếu nại',
+        complaint_done: 'Khiếu nại xong',
+      }[order.od_status],
+    }));
+
+    return data
+  }
+
+  // API 5: Order Status Distribution
+  async getOrderStatusDistribution(dto: GetStatsDto, account: IAccount) {
+    const statuses = await this.orderFoodRepository
+      .createQueryBuilder('order')
+      .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+      .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
+        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+        end: dto.endDate ? new Date(dto.endDate) : new Date(),
+      })
+      .groupBy('order.od_status')
+      .select(['order.od_status AS status', 'COUNT(*) AS count'])
+      .getRawMany();
+
+    const data = statuses.map((s) => ({
+      type: {
+        waiting_confirm_customer: 'Chờ xác nhận khách hàng',
+        over_time_customer: 'Quá hạn xác nhận',
+        waiting_confirm_restaurant: 'Chờ nhà hàng xác nhận',
+        waiting_shipping: 'Chờ giao hàng',
+        shipping: 'Đang giao hàng',
+        delivered_customer: 'Đã giao hàng',
+        received_customer: 'Hoàn thành',
+        cancel_customer: 'Khách hủy',
+        cancel_restaurant: 'Nhà hàng hủy',
+        complaint: 'Khiếu nại',
+        complaint_done: 'Khiếu nại xong',
+      }[s.STATUS] || s.STATUS,
+      value: parseInt(s.COUNT),
+    }));
+
+    return data
+  }
 }
-
-
-
-
-
-
-
-
-
-
-//   async guestConfirmOrderFood(od_id: string, od_res_id: string, id_user_guest: string): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id,
-//           id_user_guest,
-//           od_status: 'waiting_confirm_customer',
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       orderFood.od_status = 'waiting_confirm_restaurant'
-//       orderFood.od_atribute = JSON.stringify([
-//         ...JSON.parse(orderFood.od_atribute),
-//         {
-//           type: 'Khách hàng xác nhận đơn hàng',
-//           description: 'Khách hàng đã xác nhận đơn hàng, chờ nhà hàng xác nhận đơn hàng',
-//           time: new Date(),
-//         }
-//       ])
-
-//       await queryRunner.manager.save(OrderFoodEntity, orderFood)
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'guestConfirmOrderFood',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'guestConfirmOrderFood',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-//   async guestCancelOrderFood(od_id: string, od_res_id: string, id_user_guest: string): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id,
-//           id_user_guest,
-//           od_status: 'waiting_confirm_customer',
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       if (orderFood.od_status === 'shipping') {
-//         throw new BadRequestError('Đơn hàng đang được giao, không thể hủy đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'delivered_customer') {
-//         throw new BadRequestError('Đơn hàng đã được giao, không thể hủy đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'received_customer') {
-//         throw new BadRequestError('Đơn hàng đã được xác nhận, không thể hủy đơn hàng')
-//       }
-
-//       orderFood.od_status = 'cancel_customer'
-//       orderFood.od_atribute = JSON.stringify([
-//         ...JSON.parse(orderFood.od_atribute),
-//         {
-//           type: 'Khách hàng hủy đơn hàng',
-//           description: 'Khách hàng đã hủy đơn hàng',
-//           time: new Date(),
-//         }
-//       ])
-
-//       await queryRunner.manager.save(OrderFoodEntity, orderFood)
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'guestCancelOrderFood',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'guestCancelOrderFood',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     }
-//     finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-
-//   async restaurantConfirmOrderFood(od_id: string, account: IAccount): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id: account.account_restaurant_id,
-//           od_status: 'waiting_confirm_restaurant',
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       if (orderFood.od_status === 'shipping') {
-//         throw new BadRequestError('Đơn hàng đang được giao, không thể xác nhận đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'delivered_customer') {
-//         throw new BadRequestError('Đơn hàng đã được giao, không thể xác nhận đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'received_customer') {
-//         throw new BadRequestError('Đơn hàng đã được xác nhận, không thể xác nhận đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'cancel_customer') {
-//         throw new BadRequestError('Đơn hàng đã bị hủy, không thể xác nhận đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'cancel_restaurant') {
-//         throw new BadRequestError('Đơn hàng đã bị hủy bởi nhà hàng, không thể xác nhận đơn hàng')
-//       }
-
-//       orderFood.od_status = 'waiting_shipping'
-//       orderFood.od_atribute = JSON.stringify([
-//         ...JSON.parse(orderFood.od_atribute),
-//         {
-//           type: 'Nhà hàng xác nhận đơn hàng',
-//           description: 'Nhà hàng đã xác nhận đơn hàng, chờ giao hàng',
-//           time: new Date(),
-//         }
-//       ])
-
-//       await queryRunner.manager.save(OrderFoodEntity, orderFood)
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'restaurantConfirmOrderFood',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'restaurantConfirmOrderFood',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-//   async restaurantConfirmShippingOrderFood(od_id: string, account: IAccount): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id: account.account_restaurant_id,
-//           od_status: 'waiting_shipping',
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       if (orderFood.od_status === 'shipping') {
-//         throw new BadRequestError('Đơn hàng đang được giao, không thể xác nhận đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'delivered_customer') {
-//         throw new BadRequestError('Đơn hàng đã được giao, không thể xác nhận đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'received_customer') {
-//         throw new BadRequestError('Đơn hàng đã được xác nhận, không thể xác nhận đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'cancel_customer') {
-//         throw new BadRequestError('Đơn hàng đã bị hủy, không thể xác nhận đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'cancel_restaurant') {
-//         throw new BadRequestError('Đơn hàng đã bị hủy bởi nhà hàng, không thể xác nhận đơn hàng')
-//       }
-
-//       orderFood.od_status = 'shipping'
-//       orderFood.od_atribute = JSON.stringify([
-//         ...JSON.parse(orderFood.od_atribute),
-//         {
-//           type: 'Nhà hàng xác nhận giao hàng đến khách hàng',
-//           description: 'Nhà hàng đã xác nhận giao hàng đến khách hàng',
-//           time: new Date(),
-//         }
-//       ])
-
-//       await queryRunner.manager.save(OrderFoodEntity, orderFood)
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'restaurantConfirmShippingOrderFood',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'restaurantConfirmShippingOrderFood',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-//   async restaurantCancelOrderFood(od_id: string, account: IAccount): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id: account.account_restaurant_id,
-//           od_status: In(['waiting_confirm_restaurant', 'waiting_shipping']),
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       if (orderFood.od_status === 'shipping') {
-//         throw new BadRequestError('Đơn hàng đang được giao, không thể hủy đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'delivered_customer') {
-//         throw new BadRequestError('Đơn hàng đã được giao, không thể hủy đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'received_customer') {
-//         throw new BadRequestError('Đơn hàng đã được xác nhận, không thể hủy đơn hàng')
-//       }
-
-//       orderFood.od_status = 'cancel_restaurant'
-//       orderFood.od_atribute = JSON.stringify([
-//         ...JSON.parse(orderFood.od_atribute),
-//         {
-//           type: 'Nhà hàng hủy đơn hàng',
-//           description: 'Nhà hàng đã hủy đơn hàng',
-//           time: new Date(),
-//         }
-//       ])
-
-//       await queryRunner.manager.save(OrderFoodEntity, orderFood)
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'restaurantCancelOrderFood',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'restaurantCancelOrderFood',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-//   async guestReceivedOrderFood(od_id: string, od_res_id: string, id_user_guest: string): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id,
-//           id_user_guest,
-//           od_status: 'shipping',
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       if (orderFood.od_status === 'delivered_customer') {
-//         throw new BadRequestError('Đơn hàng đã được giao, không thể xác nhận đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'received_customer') {
-//         throw new BadRequestError('Đơn hàng đã được xác nhận, không thể xác nhận đơn hàng')
-//       }
-
-//       orderFood.od_status = 'received_customer'
-//       orderFood.od_atribute = JSON.stringify([
-//         ...JSON.parse(orderFood.od_atribute),
-//         {
-//           type: 'Khách hàng xác nhận đã nhận đơn hàng',
-//           description: 'Khách hàng đã xác nhận đã nhận đơn hàng',
-//           time: new Date(),
-//         }
-//       ])
-
-//       await queryRunner.manager.save(OrderFoodEntity, orderFood)
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'guestReceivedOrderFood',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'guestReceivedOrderFood',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-//   async guestComplaintOrderFood(od_id: string, od_res_id: string, id_user_guest: string, complaint: string): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id,
-//           id_user_guest,
-//           od_status: 'received_customer'
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       if (orderFood.od_status === 'complaint') {
-//         throw new BadRequestError('Đơn hàng đã khiếu nại, không thể khiếu nại đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'complaint_done') {
-//         throw new BadRequestError('Đơn hàng đã khiếu nại và đã được giải quyết, không thể khiếu nại đơn hàng')
-//       }
-
-//       orderFood.od_status = 'complaint'
-//       orderFood.od_atribute = JSON.stringify([
-//         ...JSON.parse(orderFood.od_atribute),
-//         {
-//           type: 'Khách hàng khiếu nại đơn hàng',
-//           description: complaint,
-//           time: new Date(),
-//         }
-//       ])
-
-//       await queryRunner.manager.save(OrderFoodEntity, orderFood)
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'guestComplaintOrderFood',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'guestComplaintOrderFood',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-//   async guestComplaintDoneOrderFood(od_id: string, od_res_id: string, id_user_guest: string): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id,
-//           id_user_guest,
-//           od_status: 'complaint'
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       if (orderFood.od_status === 'complaint_done') {
-//         throw new BadRequestError('Đơn hàng đã khiếu nại và đã được giải quyết, không thể khiếu nại đơn hàng')
-//       }
-
-//       orderFood.od_status = 'complaint_done'
-//       orderFood.od_atribute = JSON.stringify([
-//         ...JSON.parse(orderFood.od_atribute),
-//         {
-//           type: 'Khách hàng xác nhận đã giải quyết khiếu nại',
-//           description: 'Khách hàng đã xác nhận đã giải quyết khiếu nại',
-//           time: new Date(),
-//         }
-//       ])
-
-//       await queryRunner.manager.save(OrderFoodEntity, orderFood)
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'guestComplaintDoneOrderFood',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'guestComplaintDoneOrderFood',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-//   async guestFeedbackOrderFood(od_id: string, od_res_id: string, id_user_guest: string, od_feed_star: 1 | 2 | 3 | 4 | 5, od_feed_content: string): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id,
-//           id_user_guest,
-//           od_status: 'received_customer'
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       if (orderFood.od_feed_star) {
-//         throw new BadRequestError('Đơn hàng đã được đánh giá, không thể đánh giá lại đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'complaint') {
-//         throw new BadRequestError('Đơn hàng đang khiếu nại, không thể đánh giá đơn hàng')
-//       }
-
-//       if (orderFood.od_status === 'waiting_confirm_customer')
-//         throw new BadRequestError('Đơn hàng đang chờ xác nhận, không thể đánh giá đơn hàng')
-//       if (orderFood.od_status === 'waiting_confirm_restaurant')
-//         throw new BadRequestError('Đơn hàng đang chờ xác nhận, không thể đánh giá đơn hàng')
-//       if (orderFood.od_status === 'waiting_shipping')
-//         throw new BadRequestError('Đơn hàng đang chờ giao hàng, không thể đánh giá đơn hàng')
-//       if (orderFood.od_status === 'shipping')
-//         throw new BadRequestError('Đơn hàng đang giao hàng, không thể đánh giá đơn hàng')
-//       if (orderFood.od_status === 'delivered_customer')
-//         throw new BadRequestError('Đơn hàng đã giao hàng, không thể đánh giá đơn hàng')
-//       if (orderFood.od_status === 'cancel_customer')
-//         throw new BadRequestError('Đơn hàng đã bị hủy, không thể đánh giá đơn hàng')
-//       if (orderFood.od_status === 'cancel_restaurant')
-//         throw new BadRequestError('Đơn hàng đã bị hủy, không thể đánh giá đơn hàng')
-
-//       orderFood.od_feed_star = od_feed_star
-//       orderFood.od_feed_content = od_feed_content
-//       orderFood.od_atribute = JSON.stringify([
-//         ...JSON.parse(orderFood.od_atribute),
-//         {
-//           type: 'Khách hàng đánh giá đơn hàng',
-//           description: `Khách hàng đã đánh giá đơn hàng với ${od_feed_star} sao và nội dung là ${od_feed_content}`,
-//           time: new Date(),
-//         }
-//       ])
-
-//       await queryRunner.manager.save(OrderFoodEntity, orderFood)
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'guestFeedbackOrderFood',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'guestFeedbackOrderFood',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-//   async restaurantFeedbackOrderFood(od_id: string, od_feed_reply: string, account: IAccount): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id: account.account_restaurant_id,
-//           od_feed_star: In([1, 2, 3, 4, 5]),
-//           od_feed_reply: null
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       if (!orderFood.od_feed_star) {
-//         throw new BadRequestError('Đơn hàng chưa được đánh giá, không thể phản hồi đơn hàng')
-//       }
-
-//       if (orderFood.od_feed_reply) {
-//         throw new BadRequestError('Đơn hàng đã được phản hồi, không thể phản hồi lại đơn hàng')
-//       }
-
-
-
-//       orderFood.od_feed_reply = od_feed_reply
-//       orderFood.od_atribute = JSON.stringify([
-//         ...JSON.parse(orderFood.od_atribute),
-//         {
-//           type: 'Nhà hàng phản hồi đánh giá của khách hàng',
-//           description: `Nhà hàng đã phản hồi đánh giá của khách hàng với nội dung là ${od_feed_reply}`,
-//           time: new Date(),
-//         }
-//       ])
-
-//       await queryRunner.manager.save(OrderFoodEntity, orderFood)
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'restaurantFeedbackOrderFood',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'restaurantFeedbackOrderFood',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-//   async restaurantUpdateViewFeedbackOrderFood(od_id: string, od_feed_view: 'active' | 'disable', account: IAccount): Promise<OrderFoodEntity> {
-//     //od_feed_view
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id: account.account_restaurant_id,
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       if (!orderFood.od_feed_star) {
-//         throw new BadRequestError('Đơn hàng chưa được đánh giá, không thể phản hồi đơn hàng')
-//       }
-
-//       if (!orderFood.od_feed_reply) {
-//         throw new BadRequestError('Đơn hàng chưa được phản hồi, không thể cập nhật trạng thái')
-//       }
-
-//       orderFood.od_feed_view = od_feed_view
-
-//       await queryRunner.manager.save(OrderFoodEntity, orderFood)
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'restaurantUpdateViewFeedbackOrderFood',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'restaurantUpdateViewFeedbackOrderFood',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-//   async getListOrderFoodRestaurantPagination(
-//     {
-//       fromDate,
-//       keyword,
-//       od_status,
-//       pageIndex,
-//       pageSize = 10, // Thêm giá trị mặc định
-//       toDate,
-//     }: {
-//       pageSize?: number;
-//       pageIndex: number;
-//       keyword: string;
-//       od_status:
-//       | 'waiting_confirm_customer'
-//       | 'over_time_customer'
-//       | 'waiting_confirm_restaurant'
-//       | 'waiting_shipping'
-//       | 'shipping'
-//       | 'delivered_customer'
-//       | 'received_customer'
-//       | 'cancel_customer'
-//       | 'cancel_restaurant'
-//       | 'complaint'
-//       | 'complaint_done'
-//       | 'all';
-//       toDate: string;
-//       fromDate: string;
-//     },
-//     account: IAccount
-//   ): Promise<ResultPagination<OrderFoodEntity>> {
-//     const queryRunner = this.dataSource.createQueryRunner();
-//     try {
-//       await queryRunner.connect();
-//       await queryRunner.startTransaction();
-
-//       const whereConditions: any = {
-//         od_res_id: account.account_restaurant_id,
-//       };
-//       if (od_status !== 'all') {
-//         whereConditions.od_status = od_status;
-//       }
-
-//       if (toDate || fromDate) {
-//         whereConditions.od_created_at = {};
-//         if (toDate) {
-//           whereConditions.od_created_at = MoreThanOrEqual(new Date(toDate));
-//         }
-//         if (fromDate) {
-//           whereConditions.od_created_at = {
-//             ...whereConditions.od_created_at,
-//             ...LessThanOrEqual(new Date(fromDate)),
-//           };
-//         }
-//       }
-
-//       if (keyword) {
-//         whereConditions.od_user_name = Like(`%${keyword}%`);
-//         whereConditions.od_user_phone = Like(`%${keyword}%`);
-//         whereConditions.od_user_email = Like(`%${keyword}%`);
-//         whereConditions.od_user_address = Like(`%${keyword}%`);
-//         whereConditions.od_user_note = Like(`%${keyword}%`);
-//       }
-
-//       const orderFood = await queryRunner.manager.find(OrderFoodEntity, {
-//         where: whereConditions,
-//         order: {
-//           od_created_at: 'DESC',
-//         },
-//         skip: (pageIndex - 1) * pageSize,
-//         take: pageSize,
-//         relations: ['orderItems', 'orderItems.foodSnap'],
-//       });
-
-
-//       const total = await queryRunner.manager.count(OrderFoodEntity, {
-//         where: whereConditions,
-//       });
-//       const totalPage = Math.ceil(total / pageSize);
-//       const result: ResultPagination<OrderFoodEntity> = {
-//         meta: {
-//           current: pageIndex,
-//           pageSize,
-//           totalItem: total,
-//           totalPage
-//         },
-//         result: orderFood,
-//       };
-//       await queryRunner.commitTransaction();
-
-//       return result;
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction();
-//       saveLogSystem({
-//         action: 'getListOrderFoodRestaurantPagination',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'getListOrderFoodRestaurantPagination',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       });
-//       throw new ServerErrorDefault(error);
-//     } finally {
-//       await queryRunner.release();
-//     }
-//   }
-
-//   async getListOrderFoodGuestPagination(
-//     {
-//       id_user_guest,
-//       toDate,
-//       fromDate,
-//       keyword,
-//       od_status,
-//       pageIndex,
-//       pageSize = 10,
-//     }: {
-//       id_user_guest: string;
-//       pageSize?: number;
-//       pageIndex: number;
-//       keyword: string;
-//       od_status:
-//       | 'waiting_confirm_customer'
-//       | 'over_time_customer'
-//       | 'waiting_confirm_restaurant'
-//       | 'waiting_shipping'
-//       | 'shipping'
-//       | 'delivered_customer'
-//       | 'received_customer'
-//       | 'cancel_customer'
-//       | 'cancel_restaurant'
-//       | 'complaint'
-//       | 'complaint_done'
-//       | 'all';
-//       toDate: string;
-//       fromDate: string;
-//     }): Promise<ResultPagination<OrderFoodEntity>> {
-//     const queryRunner = this.dataSource.createQueryRunner();
-//     try {
-//       await queryRunner.connect();
-//       await queryRunner.startTransaction();
-
-//       const whereConditions: any = {
-//         id_user_guest,
-//       };
-
-//       if (od_status !== 'all') {
-//         whereConditions.od_status = od_status;
-//       }
-
-//       if (toDate || fromDate) {
-//         whereConditions.od_created_at = {};
-//         if (toDate) {
-//           whereConditions.od_created_at = MoreThanOrEqual(new Date(toDate));
-//         }
-//         if (fromDate) {
-//           whereConditions.od_created_at = {
-//             ...whereConditions.od_created_at,
-//             ...LessThanOrEqual(new Date(fromDate)),
-//           };
-//         }
-//       }
-
-//       if (keyword) {
-//         whereConditions.od_user_name = Like(`%${keyword}%`);
-//         whereConditions.od_user_phone = Like(`%${keyword}%`);
-//         whereConditions.od_user_email = Like(`%${keyword}%`);
-//         whereConditions.od_user_address = Like(`%${keyword}%`);
-//         whereConditions.od_user_note = Like(`%${keyword}%`);
-//       }
-
-//       const orderFood = await queryRunner.manager.find(OrderFoodEntity, {
-//         where: whereConditions,
-//         order: {
-//           od_created_at: 'DESC',
-//         },
-//         skip: (pageIndex - 1) * pageSize,
-//         take: pageSize,
-//         relations: ['orderItems', 'orderItems.foodSnap'],
-//       });
-
-
-
-//       const total = await queryRunner.manager.count(OrderFoodEntity, {
-//         where: whereConditions,
-//       });
-//       const totalPage = Math.ceil(total / pageSize);
-//       const result: ResultPagination<OrderFoodEntity> = {
-//         meta: {
-//           current: pageIndex,
-//           pageSize,
-//           totalItem: total,
-//           totalPage
-//         },
-//         result: orderFood,
-//       };
-
-//       await queryRunner.commitTransaction();
-//       return result;
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction();
-//       saveLogSystem({
-//         action: 'getListOrderFoodGuestPagination',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'getListOrderFoodGuestPagination',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       });
-//       throw new ServerErrorDefault(error);
-//     } finally {
-//       await queryRunner.release();
-//     }
-//   }
-
-//   async getOrderFoodByIdByGuest(od_id: string, od_res_id: string, id_user_guest: string): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id,
-//           id_user_guest
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'getOrderFoodById',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'getOrderFoodById',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-
-//   async getOrderFoodById(od_id: string, account: IAccount): Promise<OrderFoodEntity> {
-//     const queryRunner = this.dataSource.createQueryRunner()
-//     try {
-//       await queryRunner.connect()
-//       await queryRunner.startTransaction()
-
-//       const orderFood = await queryRunner.manager.findOne(OrderFoodEntity, {
-//         where: {
-//           od_id,
-//           od_res_id: account.account_restaurant_id
-//         },
-//       })
-
-//       if (!orderFood) {
-//         throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau')
-//       }
-
-//       await queryRunner.commitTransaction()
-//       return orderFood
-//     } catch (error) {
-//       await queryRunner.rollbackTransaction()
-//       saveLogSystem({
-//         action: 'getOrderFoodById',
-//         error: error,
-//         class: 'OrderFoodService',
-//         function: 'getOrderFoodById',
-//         message: error.message,
-//         time: new Date(),
-//         type: 'error',
-//       })
-//       throw new ServerErrorDefault(error)
-//     } finally {
-//       await queryRunner.release()
-//     }
-//   }
-// }
