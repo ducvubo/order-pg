@@ -57,6 +57,7 @@ export class OrderFoodComboEntity extends SampleEntity {
   waiting_shipping: 'Chờ giao hàng',
   shipping: 'Đang giao hàng',
   delivered_customer: 'Đã giao hàng đến khách hàng',
+  customer_unreachable: 'Không liên lạc được với khách hàng',
   received_customer: 'Khách hàng đã nhận hàng',
   cancel_customer: 'Khách hàng đã hủy đơn hàng',
   cancel_restaurant: 'Nhà hàng đã hủy đơn hàng',
@@ -64,7 +65,7 @@ export class OrderFoodComboEntity extends SampleEntity {
   complaint_done: 'Khiếu nại đã giải quyết',
   */
   @Column('varchar', { length: 255 })
-  od_cb_status?: "waiting_confirm_customer" | "over_time_customer" | "waiting_confirm_restaurant" | "waiting_shipping" | "shipping" | "delivered_customer" | "received_customer" | "cancel_customer" | "cancel_restaurant" | "complaint" | "complaint_done"
+  od_cb_status?: "waiting_confirm_customer" | "over_time_customer" | "waiting_confirm_restaurant" | "waiting_shipping" | "shipping" | "delivered_customer" | "customer_unreachable" | "received_customer" | "cancel_customer" | "cancel_restaurant" | "complaint" | "complaint_done"
 
   @Column('varchar', { length: 255 })
   od_cb_type_shipping?: 'GHN' | 'GHTK'

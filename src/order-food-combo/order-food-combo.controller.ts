@@ -55,6 +55,14 @@ export class OrderFoodComboController {
     return await this.orderFoodComboService.restaurantDeliveredOrderFoodCombo(od_cb_id, account);
   }
 
+  //restaurantCustomerUnreachableOrderFoodCombo
+  @Patch('/restaurant-customer-unreachable-order-food-combo')
+  @ResponseMessage('Nhà hàng đã không liên lạc được với khách hàng thành công')
+  @UseGuards(AccountAuthGuard)
+  async restaurantCustomerUnreachableOrderFoodCombo(@Body('od_cb_id') od_cb_id: string, @Acccount() account: IAccount): Promise<OrderFoodComboEntity> {
+    return await this.orderFoodComboService.restaurantCustomerUnreachableOrderFoodCombo(od_cb_id, account);
+  }
+
   @Patch('/restaurant-cancel-order-food-combo')
   @ResponseMessage('Nhà hàng đã hủy đơn hàng thành công')
   @UseGuards(AccountAuthGuard)

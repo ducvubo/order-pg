@@ -421,6 +421,62 @@ export class OrderFoodComboService {
     }
   }
 
+  //customer_unreachable
+  async restaurantCustomerUnreachableOrderFoodCombo(od_cb_id: string, account: IAccount): Promise<OrderFoodComboEntity> {
+    try {
+      const orderFoodCombo = await this.orderFoodComboRepository.findOne({
+        where: {
+          od_cb_id,
+          od_cb_res_id: account.account_restaurant_id,
+          od_cb_status: 'shipping',
+        },
+      });
+
+      if (!orderFoodCombo) {
+        throw new BadRequestError('Đơn hàng không tồn tại hoặc đã bị xóa, vui lòng thử lại sau');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'delivered_customer') {
+        throw new BadRequestError('Đơn hàng đã được giao, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'received_customer') {
+        throw new BadRequestError('Đơn hàng đã được xác nhận, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'cancel_customer') {
+        throw new BadRequestError('Đơn hàng đã bị hủy, không thể xác nhận đơn hàng');
+      }
+
+      if (orderFoodCombo.od_cb_status === 'cancel_restaurant') {
+        throw new BadRequestError('Đơn hàng đã bị hủy bởi nhà hàng, không thể xác nhận đơn hàng');
+      }
+
+      orderFoodCombo.od_cb_status = 'customer_unreachable';
+      orderFoodCombo.od_cb_atribute = JSON.stringify([
+        ...JSON.parse(orderFoodCombo.od_cb_atribute),
+        {
+          type: 'Không liên lạc được với khách hàng',
+          description: 'Nhà hàng đã cố gắng liên lạc với khách hàng nhưng không thành công',
+          time: new Date(),
+        }
+      ]);
+
+      return await this.orderFoodComboRepository.save(orderFoodCombo);
+    } catch (error) {
+      saveLogSystem({
+        action: 'restaurantCustomerUnreachableOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'restaurantCustomerUnreachableOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error',
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
   async restaurantCancelOrderFoodCombo(od_cb_id: string, od_cb_reason_cancel: string, account: IAccount): Promise<OrderFoodComboEntity> {
     try {
       if (!od_cb_reason_cancel) {

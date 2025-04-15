@@ -52,6 +52,14 @@ export class OrderFoodController {
     return await this.orderFoodService.restaurantDeliveredOrderFood(od_id, account);
   }
 
+  //customer_unreachable
+  @Patch('/restaurant-customer-unreachable-order-food')
+  @ResponseMessage('Nhà hàng đã không liên lạc được với khách hàng thành công')
+  @UseGuards(AccountAuthGuard)
+  async restaurantCustomerUnreachableOrderFood(@Body('od_id') od_id: string, @Acccount() account: IAccount): Promise<OrderFoodEntity> {
+    return await this.orderFoodService.restaurantCustomerUnreachableOrderFood(od_id, account);
+  }
+
   @Patch('/restaurant-cancel-order-food')
   @ResponseMessage('Nhà hàng đã hủy đơn hàng thành công')
   @UseGuards(AccountAuthGuard)
