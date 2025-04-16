@@ -49,10 +49,17 @@ export class CronService {
       }
 
       //OrderFoodCombo
+
+      const currentTimeCombo = new Date();
+      currentTimeCombo.setHours(currentTimeCombo.getHours() + 7);
+
+      const tenMinutesAgoCombo = new Date(currentTimeCombo);
+      tenMinutesAgoCombo.setMinutes(tenMinutesAgoCombo.getMinutes() - 10);
+
       const overdueOrdersCombo = await queryRunner.manager.find(OrderFoodComboEntity, {
         where: {
           od_cb_status: 'waiting_confirm_customer',
-          od_cb_created_at: LessThan(tenMinutesAgo),
+          od_cb_created_at: LessThan(tenMinutesAgoCombo),
         },
       });
 
@@ -65,7 +72,7 @@ export class CronService {
               {
                 type: 'Quá hạn xác nhận',
                 description: 'Đơn hàng đã quá 10 phút mà không được xác nhận bởi khách hàng',
-                time: currentTime,
+                time: currentTimeCombo,
               },
             ]);
             await queryRunner.manager.save(OrderFoodComboEntity, order);
