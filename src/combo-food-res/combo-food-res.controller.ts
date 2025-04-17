@@ -11,6 +11,7 @@ import { UpdateResult } from 'typeorm'
 import { UpdateStatusFoodComboResDto } from './dto/update-status-food-combo-res.dto'
 import { UpdateStateFoodComboResDto } from './dto/update-state-food-combo-res.dto'
 import { Request as RequestExpress } from 'express'
+import { ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 
 @Controller('combo-food-res')
 export class ComboFoodResController {
@@ -46,6 +47,30 @@ export class ComboFoodResController {
     @Acccount() account: IAccount
   ): Promise<ResultPagination<FoodComboResEntity>> {
     return await this.comboFoodResService.findAll({ pageSize: +pageSize, pageIndex: +pageIndex, fcb_name }, account)
+  }
+
+  @Get('list-food-combo-by-all')
+  @ResponseMessage('Lấy danh sách combo món ăn thành công')
+  @ApiQuery({ name: 'pageIndex', required: true, type: Number, description: 'Trang hiện tại' })
+  @ApiQuery({ name: 'pageSize', required: true, type: Number, description: 'Số lượng phần tử mỗi trang' })
+  @ApiOkResponse({
+    description: 'Danh sách món ăn phân trang',
+  })
+  async findAllPaginationListFood(
+    @Query('pageIndex') pageIndex: string,
+    @Query('pageSize') pageSize: string,
+  ): Promise<{
+    meta: {
+      pageIndex: number
+      pageSize: number
+      totalPage: number
+      totalItem: number
+    }
+    result: FoodComboResEntity[]
+  }> {
+    return await this.comboFoodResService.findAllPaginationListFoodCombo(
+      { pageSize: +pageSize, pageIndex: +pageIndex }
+    )
   }
 
   @Get('/get-combo-by-slug/:fcb_slug')

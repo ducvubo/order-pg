@@ -301,4 +301,102 @@ export class FoodComboResQuery {
       throw new ServerErrorDefault(error)
     }
   }
+
+
+  async findAllPaginationListFoodCombo({
+    pageIndex,
+    pageSize
+  }: {
+    pageIndex: number
+    pageSize: number
+  }): Promise<{
+    meta: {
+      pageIndex: number
+      pageSize: number
+      totalPage: number
+      totalItem: number
+    }
+    result: FoodComboResEntity[]
+  }> {
+    try {
+      const indexExist = await indexElasticsearchExists(FOOD_COMBO_RES_ELASTICSEARCH_INDEX)
+
+      if (!indexExist) {
+        return {
+          meta: {
+            pageIndex,
+            pageSize,
+            totalPage: 0,
+            totalItem: 0
+          },
+          result: []
+        }
+      }
+
+      const from = (pageIndex - 1) * pageSize
+      //isDeleted: 0
+      //fcb_status: enable
+      const result = await this.elasticSearch.search({
+        index: FOOD_COMBO_RES_ELASTICSEARCH_INDEX,
+        body: {
+          query: {
+            bool: {
+              must: [
+                {
+                  match: {
+                    isDeleted: {
+                      query: 0,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    fcb_status: {
+                      query: 'enable',
+                      operator: 'and'
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          from,
+          size: pageSize,
+          sort: [{ updatedAt: { order: 'desc' } }]
+        }
+      })
+      const hits = result.hits?.hits || []
+      let totalRecords = 0
+      if (typeof result.hits?.total === 'object') {
+        totalRecords = result.hits.total.value
+      } else if (typeof result.hits?.total === 'number') {
+        totalRecords = result.hits.total
+      }
+      const totalPages = Math.ceil(totalRecords / pageSize)
+      const results = hits.map((hit) => hit._source)
+
+      return {
+        meta: {
+          pageIndex,
+          pageSize,
+          totalPage: totalPages,
+          totalItem: totalRecords
+        },
+        result: results
+      }
+    } catch (error) {
+      saveLogSystem({
+        action: 'findAllPaginationListFoodCombo',
+        class: 'FoodComboResQuery',
+        function: 'findAllPaginationListFoodCombo',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
 }

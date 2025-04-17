@@ -633,4 +633,46 @@ export class FoodRestaurantService implements OnModuleInit {
       throw new ServerErrorDefault(error)
     }
   }
+
+  async findAllPaginationListFood({ pageSize, pageIndex }): Promise<{
+    meta: {
+      pageIndex: number
+      pageSize: number
+      totalPage: number
+      totalItem: number
+    }
+    result: FoodRestaurantEntity[]
+  }> {
+    try {
+      pageIndex = isNaN(pageIndex) ? 0 : pageIndex
+      pageSize = isNaN(pageSize) ? 10 : pageSize
+
+      const dataFood = await this.foodRestaurantQuery.findAllPaginationListFood({ pageSize, pageIndex })
+
+      if (!dataFood?.result.length) {
+        return {
+          meta: {
+            pageIndex,
+            pageSize,
+            totalPage: 0,
+            totalItem: 0
+          },
+          result: []
+        }
+      }
+
+      return dataFood
+    } catch (error) {
+      saveLogSystem({
+        action: 'findAllPaginationListFood',
+        class: 'FoodRestaurantService',
+        function: 'findAllPaginationListFood',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }

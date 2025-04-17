@@ -49,9 +49,8 @@ export class CronService {
       }
 
       //OrderFoodCombo
-
       const currentTimeCombo = new Date();
-      currentTimeCombo.setHours(currentTimeCombo.getHours() + 7);
+      currentTimeCombo.setHours(currentTimeCombo.getHours());
 
       const tenMinutesAgoCombo = new Date(currentTimeCombo);
       tenMinutesAgoCombo.setMinutes(tenMinutesAgoCombo.getMinutes() - 10);

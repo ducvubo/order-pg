@@ -171,6 +171,97 @@ export class FoodRestaurantQuery {
     }
   }
 
+  async findAllPaginationListFood({ pageIndex, pageSize }): Promise<{
+    meta: {
+      pageIndex: number
+      pageSize: number
+      totalPage: number
+      totalItem: number
+    }
+    result: FoodRestaurantEntity[]
+  }> {
+    try {
+      const indexExist = await indexElasticsearchExists(FOOD_RESTAURANT_ELASTICSEARCH_INDEX)
+
+      if (!indexExist) {
+        return {
+          meta: {
+            pageIndex,
+            pageSize,
+            totalPage: 0,
+            totalItem: 0
+          },
+          result: []
+        }
+      }
+
+      const from = (pageIndex - 1) * pageSize
+      //isDeleted: 0
+      //food_status: enable
+      const result = await this.elasticSearch.search({
+        index: FOOD_RESTAURANT_ELASTICSEARCH_INDEX,
+        body: {
+          query: {
+            bool: {
+              must: [
+                {
+                  match: {
+                    isDeleted: {
+                      query: 0,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    food_status: {
+                      query: 'enable',
+                      operator: 'and'
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          from,
+          size: pageSize,
+          sort: [{ updatedAt: { order: 'desc' } }]
+        }
+      })
+      const hits = result.hits?.hits || []
+      let totalRecords = 0
+      if (typeof result.hits?.total === 'object') {
+        totalRecords = result.hits.total.value
+      }
+      else if (typeof result.hits?.total === 'number') {
+        totalRecords = result.hits.total
+      }
+      const totalPages = Math.ceil(totalRecords / pageSize)
+      const results = hits.map((hit) => hit._source)
+
+      return {
+        meta: {
+          pageIndex,
+          pageSize,
+          totalPage: totalPages,
+          totalItem: totalRecords
+        },
+        result: results
+      }
+    } catch (error) {
+      saveLogSystem({
+        action: 'findAllPaginationListFood',
+        class: 'FoodRestaurantQuery',
+        function: 'findAllPaginationListFood',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
   async findFoodName(account: IAccount): Promise<FoodRestaurantEntity[]> {
     try {
       const indexExist = await indexElasticsearchExists(FOOD_RESTAURANT_ELASTICSEARCH_INDEX)

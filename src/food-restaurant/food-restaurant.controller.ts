@@ -11,6 +11,7 @@ import { UpdateStatusFoodRestaurantDto } from './dto/update-status-food-restaura
 import { UpdateResult } from 'typeorm'
 import { UpdateStateFoodRestaurantDto } from './dto/update-state-food-restaurant.dto'
 import { Request as RequestExpress } from 'express'
+import { ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 
 
 @Controller('food-restaurant')
@@ -47,6 +48,31 @@ export class FoodRestaurantController {
     @Acccount() account: IAccount
   ): Promise<UpdateResult> {
     return await this.foodRestaurantService.update(updateFoodRestaurantDto, account)
+  }
+
+  //findAllPaginationListFood
+  @Get('list-food-by-all')
+  @ResponseMessage('Lấy danh sách món ăn thành công')
+  @ApiQuery({ name: 'pageIndex', required: true, type: Number, description: 'Trang hiện tại' })
+  @ApiQuery({ name: 'pageSize', required: true, type: Number, description: 'Số lượng phần tử mỗi trang' })
+  @ApiOkResponse({
+    description: 'Danh sách món ăn phân trang',
+  })
+  async findAllPaginationListFood(
+    @Query('pageIndex') pageIndex: string,
+    @Query('pageSize') pageSize: string,
+  ): Promise<{
+    meta: {
+      pageIndex: number
+      pageSize: number
+      totalPage: number
+      totalItem: number
+    }
+    result: FoodRestaurantEntity[]
+  }> {
+    return await this.foodRestaurantService.findAllPaginationListFood(
+      { pageSize: +pageSize, pageIndex: +pageIndex }
+    )
   }
 
   @Get('/get-food-res-slug/:food_slug')

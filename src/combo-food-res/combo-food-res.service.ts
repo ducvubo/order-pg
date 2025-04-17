@@ -497,4 +497,91 @@ export class ComboFoodResService {
       throw new ServerErrorDefault(error)
     }
   }
+
+  // async findAllPaginationListFood({ pageSize, pageIndex }): Promise<{
+  //   meta: {
+  //     pageIndex: number
+  //     pageSize: number
+  //     totalPage: number
+  //     totalItem: number
+  //   }
+  //   result: FoodRestaurantEntity[]
+  // }> {
+  //   try {
+  //     pageIndex = isNaN(pageIndex) ? 0 : pageIndex
+  //     pageSize = isNaN(pageSize) ? 10 : pageSize
+
+  //     const dataFood = await this.foodRestaurantQuery.findAllPaginationListFood({ pageSize, pageIndex })
+
+  //     if (!dataFood?.result.length) {
+  //       return {
+  //         meta: {
+  //           pageIndex,
+  //           pageSize,
+  //           totalPage: 0,
+  //           totalItem: 0
+  //         },
+  //         result: []
+  //       }
+  //     }
+
+  //     return dataFood
+  //   } catch (error) {
+  //     saveLogSystem({
+  //       action: 'findAllPaginationListFood',
+  //       class: 'FoodRestaurantService',
+  //       function: 'findAllPaginationListFood',
+  //       message: error.message,
+  //       time: new Date(),
+  //       error: error,
+  //       type: 'error'
+  //     })
+  //     throw new ServerErrorDefault(error)
+  //   }
+  // }
+
+  async findAllPaginationListFoodCombo({
+    pageSize,
+    pageIndex,
+  }): Promise<{
+    meta: {
+      pageIndex: number
+      pageSize: number
+      totalPage: number
+      totalItem: number
+    }
+    result: FoodComboResEntity[]
+  }> {
+    try {
+      pageIndex = isNaN(pageIndex) ? 0 : pageIndex
+      pageSize = isNaN(pageSize) ? 10 : pageSize
+
+      const dataFood = await this.foodComboResQuery.findAllPaginationListFoodCombo({ pageSize, pageIndex })
+
+      if (!dataFood?.result.length) {
+        return {
+          meta: {
+            pageIndex,
+            pageSize,
+            totalPage: 0,
+            totalItem: 0
+          },
+          result: []
+        }
+      }
+
+      return dataFood
+    } catch (error) {
+      saveLogSystem({
+        action: 'findAllPaginationListFoodCombo',
+        class: 'ComboFoodResService',
+        function: 'findAllPaginationListFoodCombo',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }
