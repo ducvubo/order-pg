@@ -29,6 +29,7 @@ import { OrderFoodComboModule } from './order-food-combo/order-food-combo.module
 import { OrderFoodComboEntity } from './order-food-combo/entities/order-food-combo.entity'
 import { OrderFoodComboItemEntity } from './order-food-combo/entities/order-food-combo-item.entity'
 import { FoodComboSnapEntity } from './order-food-combo/entities/food-combo-snap.entity'
+import { SyncModule } from './sync/sync.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { FoodComboSnapEntity } from './order-food-combo/entities/food-combo-snap
     OrderFoodModule,
     CronModule,
     OrderFoodComboModule,
+    SyncModule,
   ],
   controllers: [AppController],
   providers: [
