@@ -77,6 +77,12 @@ export class ComboFoodResController {
     return await this.comboFoodResService.getFoodComboBySlug(fcb_slug)
   }
 
+  @Get('/get-combo-by-id/:fcb_id')
+  @ResponseMessage('Lấy thông tin combo thành công')
+  async findOneById(@Param('fcb_id') fcb_id: string): Promise<FoodComboResEntity> {
+    return await this.comboFoodResService.getFoodComboById(fcb_id)
+  }
+
   @Post('/add-combo-food-to-cart')
   @ResponseMessage('Thêm combo món ăn vào giỏ hàng thành công')
   async addFoodToCart(@Query('fcb_id') fcb_id: string, @Request() req: RequestExpress): Promise<boolean> {

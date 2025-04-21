@@ -33,7 +33,7 @@ export class FoodRestaurantService implements OnModuleInit {
     private readonly foodOptionsRepo: FoodOptionsRepo,
     private readonly foodOptionQuery: FoodOptionsQuery,
     private readonly dataSource: DataSource
-  ) {}
+  ) { }
 
   @Client({
     transport: Transport.GRPC,
@@ -692,6 +692,28 @@ export class FoodRestaurantService implements OnModuleInit {
         action: 'getFoodRestaurantBySlug',
         class: 'FoodRestaurantService',
         function: 'getFoodRestaurantBySlug',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async getFoodRestaurantById(food_id: string): Promise<FoodRestaurantEntity> {
+    try {
+      const data = await this.foodRestaurantQuery.getFoodRestaurantById({ food_id })
+      if (!data) {
+        throw new BadRequestError('Món ăn không tồn tại')
+      }
+      data.fopt_food = await this.foodOptionQuery.findFoodOptionByIdFoodUI(data.food_id)
+      return data
+    } catch (error) {
+      saveLogSystem({
+        action: 'getFoodRestaurantById',
+        class: 'FoodRestaurantService',
+        function: 'getFoodRestaurantById',
         message: error.message,
         time: new Date(),
         error: error,

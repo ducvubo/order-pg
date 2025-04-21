@@ -15,7 +15,7 @@ import { ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 
 @Controller('food-restaurant')
 export class FoodRestaurantController {
-  constructor(private readonly foodRestaurantService: FoodRestaurantService) {}
+  constructor(private readonly foodRestaurantService: FoodRestaurantService) { }
 
   @Post()
   @ResponseMessage('Tạo món ăn thành công')
@@ -76,6 +76,12 @@ export class FoodRestaurantController {
   @ResponseMessage('Lấy món ăn theo slug thành công')
   async getFoodResSlug(@Param('food_slug') food_slug: string): Promise<FoodRestaurantEntity> {
     return await this.foodRestaurantService.getFoodRestaurantBySlug(food_slug)
+  }
+
+  @Get('get-food-id/:food_id')
+  @ResponseMessage('Lấy món ăn theo id thành công')
+  async getFoodId(@Param('food_id') food_id: string): Promise<FoodRestaurantEntity> {
+    return await this.foodRestaurantService.getFoodRestaurantById(food_id)
   }
 
   @Get('/get-cart-food')

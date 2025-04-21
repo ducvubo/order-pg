@@ -15,7 +15,7 @@ import { Injectable } from '@nestjs/common'
 @Injectable()
 export class FoodRestaurantQuery {
   private readonly elasticSearch = getElasticsearch().instanceConnect
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   async findOneByName(food_name: string, account: IAccount): Promise<FoodRestaurantEntity> {
     try {
@@ -613,6 +613,69 @@ export class FoodRestaurantQuery {
         action: 'getFoodRestaurantByIds',
         class: 'FoodRestaurantQuery',
         function: 'getFoodRestaurantByIds',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async getFoodRestaurantById({
+    food_id,
+  }: {
+    food_id: string
+  }): Promise<FoodRestaurantEntity> {
+    try {
+      const indexExist = await indexElasticsearchExists(FOOD_RESTAURANT_ELASTICSEARCH_INDEX)
+
+      if (!indexExist) {
+        return null
+      }
+
+      const result = await this.elasticSearch.search({
+        index: FOOD_RESTAURANT_ELASTICSEARCH_INDEX,
+        body: {
+          query: {
+            bool: {
+              must: [
+                {
+                  match: {
+                    food_id: {
+                      query: food_id,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    isDeleted: {
+                      query: 0,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    food_status: {
+                      query: 'enable',
+                      operator: 'and'
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      })
+
+      return result.hits?.hits[0]?._source || null
+    } catch (error) {
+      saveLogSystem({
+        action: 'getFoodRestaurantById',
+        class: 'FoodRestaurantQuery',
+        function: 'getFoodRestaurantById',
         message: error.message,
         time: new Date(),
         error: error,

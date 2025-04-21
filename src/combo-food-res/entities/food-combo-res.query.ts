@@ -10,7 +10,7 @@ import { IAccount } from 'src/guard/interface/account.interface'
 
 export class FoodComboResQuery {
   private readonly elasticSearch = getElasticsearch().instanceConnect
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   async findOne(fcb_id: string, fcb_res_id: string): Promise<FoodComboResEntity> {
     try {
@@ -293,6 +293,67 @@ export class FoodComboResQuery {
         action: 'getFoodComboResBySlug',
         class: 'FoodComboResQuery',
         function: 'getFoodComboResBySlug',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async getFoodComboResById(fcb_id: string): Promise<FoodComboResEntity> {
+    try {
+      const indexExist = await indexElasticsearchExists(FOOD_COMBO_RES_ELASTICSEARCH_INDEX)
+
+      if (!indexExist) {
+        return null
+      }
+
+      //fcb_status: enable
+      //isDeleted: 0
+      const result = (await this.elasticSearch.search({
+        index: FOOD_COMBO_RES_ELASTICSEARCH_INDEX,
+        body: {
+          query: {
+            bool: {
+              must: [
+                {
+                  match: {
+                    fcb_id: {
+                      query: fcb_id,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    fcb_status: {
+                      query: 'enable',
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    isDeleted: {
+                      query: 0,
+                      operator: 'and'
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      })) as any
+
+      return result.hits?.hits[0]?._source || null
+    } catch (error) {
+      saveLogSystem({
+        action: 'getFoodComboResById',
+        class: 'FoodComboResQuery',
+        function: 'getFoodComboResById',
         message: error.message,
         time: new Date(),
         error: error,

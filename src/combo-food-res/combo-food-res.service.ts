@@ -576,6 +576,27 @@ export class ComboFoodResService implements OnModuleInit {
     }
   }
 
+  async getFoodComboById(fcb_id: string): Promise<FoodComboResEntity> {
+    try {
+      const foodCombo = await this.foodComboResQuery.getFoodComboResById(fcb_id)
+
+      foodCombo.fcbi_combo = await this.foodComboItemsQuery.getComboItemByIdComboIdWithUI(foodCombo.fcb_id)
+
+      return foodCombo
+    } catch (error) {
+      saveLogSystem({
+        action: 'getFoodComboById',
+        class: 'ComboFoodResService',
+        function: 'getFoodComboById',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
   // async findAllPaginationListFood({ pageSize, pageIndex }): Promise<{
   //   meta: {
   //     pageIndex: number
