@@ -15,7 +15,7 @@ import { Injectable } from '@nestjs/common'
 @Injectable()
 export class FoodRestaurantQuery {
   private readonly elasticSearch = getElasticsearch().instanceConnect
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {}
 
   async findOneByName(food_name: string, account: IAccount): Promise<FoodRestaurantEntity> {
     try {
@@ -232,8 +232,7 @@ export class FoodRestaurantQuery {
       let totalRecords = 0
       if (typeof result.hits?.total === 'object') {
         totalRecords = result.hits.total.value
-      }
-      else if (typeof result.hits?.total === 'number') {
+      } else if (typeof result.hits?.total === 'number') {
         totalRecords = result.hits.total
       }
       const totalPages = Math.ceil(totalRecords / pageSize)
@@ -517,11 +516,10 @@ export class FoodRestaurantQuery {
                   }
                 }
               ]
-            },
+            }
           }
         }
       })
-
 
       return result.hits?.hits[0]?._source || null
     } catch (error) {
@@ -529,6 +527,92 @@ export class FoodRestaurantQuery {
         action: 'getFoodRestaurantBySlug',
         class: 'FoodRestaurantQuery',
         function: 'getFoodRestaurantBySlug',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async getFoodRestaurantByIds(food_ids: string[]): Promise<FoodRestaurantEntity[]> {
+    try {
+      const indexExist = await indexElasticsearchExists(FOOD_RESTAURANT_ELASTICSEARCH_INDEX)
+
+      if (!indexExist) {
+        return null
+      }
+
+      const result = await this.elasticSearch.search({
+        index: FOOD_RESTAURANT_ELASTICSEARCH_INDEX,
+        body: {
+          from: 0,
+          size: 10000,
+          query: {
+            bool: {
+              must: [
+                {
+                  terms: {
+                    'food_id.keyword': food_ids
+                  }
+                },
+                {
+                  match: {
+                    isDeleted: {
+                      query: 0,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    food_status: {
+                      query: 'enable',
+                      operator: 'and'
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      })
+
+      //lấy thông tin option của món ăn
+      await Promise.all(
+        result.hits?.hits.map((food: any) => {
+          return this.elasticSearch
+            .search({
+              index: FOOD_OPTIONS_ELASTICSEARCH_INDEX,
+              body: {
+                from: 0,
+                size: 10000,
+                query: {
+                  bool: {
+                    must: [
+                      {
+                        term: {
+                          'fopt_food_id.keyword': food._source.food_id
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            })
+            .then((resultOption) => {
+              food._source.fopt_food = resultOption.hits?.hits.map((hit) => hit._source) || []
+            })
+        })
+      )
+
+      return result.hits?.hits.map((hit) => hit._source) || []
+    } catch (error) {
+      saveLogSystem({
+        action: 'getFoodRestaurantByIds',
+        class: 'FoodRestaurantQuery',
+        function: 'getFoodRestaurantByIds',
         message: error.message,
         time: new Date(),
         error: error,

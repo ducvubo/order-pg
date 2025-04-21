@@ -15,7 +15,7 @@ import { ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 
 @Controller('combo-food-res')
 export class ComboFoodResController {
-  constructor(private readonly comboFoodResService: ComboFoodResService) { }
+  constructor(private readonly comboFoodResService: ComboFoodResService) {}
 
   @Post()
   @ResponseMessage('Thêm combo thành công')
@@ -54,11 +54,11 @@ export class ComboFoodResController {
   @ApiQuery({ name: 'pageIndex', required: true, type: Number, description: 'Trang hiện tại' })
   @ApiQuery({ name: 'pageSize', required: true, type: Number, description: 'Số lượng phần tử mỗi trang' })
   @ApiOkResponse({
-    description: 'Danh sách món ăn phân trang',
+    description: 'Danh sách món ăn phân trang'
   })
   async findAllPaginationListFood(
     @Query('pageIndex') pageIndex: string,
-    @Query('pageSize') pageSize: string,
+    @Query('pageSize') pageSize: string
   ): Promise<{
     meta: {
       pageIndex: number
@@ -68,9 +68,7 @@ export class ComboFoodResController {
     }
     result: FoodComboResEntity[]
   }> {
-    return await this.comboFoodResService.findAllPaginationListFoodCombo(
-      { pageSize: +pageSize, pageIndex: +pageIndex }
-    )
+    return await this.comboFoodResService.findAllPaginationListFoodCombo({ pageSize: +pageSize, pageIndex: +pageIndex })
   }
 
   @Get('/get-combo-by-slug/:fcb_slug')
@@ -82,7 +80,25 @@ export class ComboFoodResController {
   @Post('/add-combo-food-to-cart')
   @ResponseMessage('Thêm combo món ăn vào giỏ hàng thành công')
   async addFoodToCart(@Query('fcb_id') fcb_id: string, @Request() req: RequestExpress): Promise<boolean> {
-    return await this.comboFoodResService.addComboFoodToCart({ fcb_id, id_user_guest: req.headers['x-cl-id'] as string })
+    return await this.comboFoodResService.addComboFoodToCart({
+      fcb_id,
+      id_user_guest: req.headers['x-cl-id'] as string
+    })
+  }
+
+  @Get('/get-cart-combo-food')
+  @ResponseMessage('Lấy danh sách combo món ăn trong giỏ hàng thành công')
+  async getCartFood(@Request() req: RequestExpress): Promise<FoodComboResEntity[]> {
+    return await this.comboFoodResService.getCartFoodCombo(req.headers['x-cl-id'] as string)
+  }
+
+  @Delete('/delete-combo-food-cart')
+  @ResponseMessage('Xóa combo món ăn trong giỏ hàng thành công')
+  async deleteFoodCart(@Query('fcb_id') fcb_id: string, @Request() req: RequestExpress): Promise<boolean> {
+    return await this.comboFoodResService.deleteComboFoodToCart({
+      fcb_id,
+      id_user_guest: req.headers['x-cl-id'] as string
+    })
   }
 
   @Get('/list-combo-food/:combo_food_res_id')

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, OnModuleInit } from '@nestjs/common'
 import { FoodComboResRepo } from './entities/food-combo-res.repo'
 import { FoodComboResQuery } from './entities/food-combo-res.query'
 import { CreateFoodComboResDto, FoodItemDto } from './dto/create-food-combo-res.dto'
@@ -17,9 +17,10 @@ import { UpdateStatusFoodComboResDto } from './dto/update-status-food-combo-res.
 import { UpdateStateFoodComboResDto } from './dto/update-state-food-combo-res.dto'
 import { FoodRestaurantQuery } from 'src/food-restaurant/entities/food-restaurant.query'
 import { getCacheIO, setCacheIO } from 'src/utils/cache'
+import kafkaInstance from '../config/kafka.config'
 
 @Injectable()
-export class ComboFoodResService {
+export class ComboFoodResService implements OnModuleInit {
   constructor(
     private readonly foodComboResRepo: FoodComboResRepo,
     private readonly foodComboResQuery: FoodComboResQuery,
@@ -27,7 +28,30 @@ export class ComboFoodResService {
     private readonly foodComboItemsRepo: FoodComboItemsRepo,
     private readonly foodRestaurantQuery: FoodRestaurantQuery,
     private readonly dataSource: DataSource
-  ) { }
+  ) {}
+
+  async onModuleInit() {
+    const consumer = await kafkaInstance.getConsumer('SYNC_CLIENT_ID_CART_FOOD_COMBO')
+    await consumer.subscribe({ topic: 'SYNC_CLIENT_ID', fromBeginning: true })
+    await consumer.run({
+      eachMessage: async ({ topic, partition, message }) => {
+        const dataMessage = message.value.toString()
+        const data = JSON.parse(dataMessage)
+        const { clientIdOld, clientIdNew } = data
+        //đồng bộ rỏ hàng
+        const listFoodCartComboOld = await getCacheIO(`combo_food_cart_${clientIdOld}`)
+        const listFoodCartComboNew = await getCacheIO(`combo_food_cart_${clientIdOld}`)
+        const listFoodCartCombo = []
+        if (listFoodCartComboOld) {
+          listFoodCartCombo.push(...listFoodCartComboOld)
+        }
+        if (listFoodCartComboNew) {
+          listFoodCartCombo.push(...listFoodCartComboNew)
+        }
+        await setCacheIO(`combo_food_cart_${clientIdNew}`, listFoodCartCombo)
+      }
+    })
+  }
 
   async createComboFoodRes(
     createFoodComboResDto: CreateFoodComboResDto,
@@ -477,6 +501,60 @@ export class ComboFoodResService {
     }
   }
 
+  async getCartFoodCombo(id_user_guest: string): Promise<FoodComboResEntity[]> {
+    try {
+      const listFoodCart = await getCacheIO(`combo_food_cart_${id_user_guest}`)
+      if (!listFoodCart) {
+        return []
+      }
+      const listComboFood = await this.foodComboResQuery.getFoodComboResByIds(listFoodCart)
+      if (!listComboFood) {
+        return []
+      }
+      await Promise.all(
+        listComboFood.map(async (item) => {
+          item.fcbi_combo = await this.foodComboItemsQuery.getComboItemByIdComboIdWithUI(item.fcb_id)
+        })
+      )
+
+      return listComboFood
+    } catch (error) {
+      saveLogSystem({
+        action: 'getCartFood',
+        class: 'FoodRestaurantService',
+        function: 'getCartFood',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async deleteComboFoodToCart({ fcb_id, id_user_guest }: { fcb_id: string; id_user_guest: string }): Promise<boolean> {
+    try {
+      const listFoodCart = await getCacheIO(`combo_food_cart_${id_user_guest}`)
+      if (!listFoodCart) {
+        return false
+      }
+      const newListFoodCart = listFoodCart.filter((item) => item !== fcb_id)
+      await setCacheIO(`combo_food_cart_${id_user_guest}`, newListFoodCart)
+      return true
+    } catch (error) {
+      saveLogSystem({
+        action: 'deleteComboFoodToCart',
+        class: 'FoodRestaurantService',
+        function: 'deleteComboFoodToCart',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
   async getFoodComboBySlug(fcb_slug: string): Promise<FoodComboResEntity> {
     try {
       const foodCombo = await this.foodComboResQuery.getFoodComboResBySlug(fcb_slug)
@@ -540,10 +618,7 @@ export class ComboFoodResService {
   //   }
   // }
 
-  async findAllPaginationListFoodCombo({
-    pageSize,
-    pageIndex,
-  }): Promise<{
+  async findAllPaginationListFoodCombo({ pageSize, pageIndex }): Promise<{
     meta: {
       pageIndex: number
       pageSize: number

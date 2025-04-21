@@ -10,7 +10,7 @@ import { Injectable } from '@nestjs/common'
 @Injectable()
 export class FoodOptionsQuery {
   private readonly elasticSearch = getElasticsearch().instanceConnect
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {}
 
   async findOptionByIdFood(fopt_food_id: string, fopt_res_id: string): Promise<FoodOptionsEntity[]> {
     try {
@@ -119,8 +119,8 @@ export class FoodOptionsQuery {
       if (!indexExist) {
         return []
       }
-      //fopt_status = 'enable' 
-      //isDelete 
+      //fopt_status = 'enable'
+      //isDelete
       const result = await this.elasticSearch.search({
         index: FOOD_OPTIONS_ELASTICSEARCH_INDEX,
         body: {

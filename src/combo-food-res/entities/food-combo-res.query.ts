@@ -10,7 +10,7 @@ import { IAccount } from 'src/guard/interface/account.interface'
 
 export class FoodComboResQuery {
   private readonly elasticSearch = getElasticsearch().instanceConnect
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {}
 
   async findOne(fcb_id: string, fcb_res_id: string): Promise<FoodComboResEntity> {
     try {
@@ -251,7 +251,7 @@ export class FoodComboResQuery {
 
       //fcb_status: enable
       //isDeleted: 0
-      const result = await this.elasticSearch.search({
+      const result = (await this.elasticSearch.search({
         index: FOOD_COMBO_RES_ELASTICSEARCH_INDEX,
         body: {
           query: {
@@ -285,7 +285,7 @@ export class FoodComboResQuery {
             }
           }
         }
-      }) as any
+      })) as any
 
       return result.hits?.hits[0]?._source || null
     } catch (error) {
@@ -302,14 +302,7 @@ export class FoodComboResQuery {
     }
   }
 
-
-  async findAllPaginationListFoodCombo({
-    pageIndex,
-    pageSize
-  }: {
-    pageIndex: number
-    pageSize: number
-  }): Promise<{
+  async findAllPaginationListFoodCombo({ pageIndex, pageSize }: { pageIndex: number; pageSize: number }): Promise<{
     meta: {
       pageIndex: number
       pageSize: number
@@ -399,4 +392,61 @@ export class FoodComboResQuery {
     }
   }
 
+  async getFoodComboResByIds(fcb_ids: string[]): Promise<FoodComboResEntity[]> {
+    try {
+      const indexExist = await indexElasticsearchExists(FOOD_COMBO_RES_ELASTICSEARCH_INDEX)
+
+      if (!indexExist) {
+        return []
+      }
+
+      const result = await this.elasticSearch.search({
+        index: FOOD_COMBO_RES_ELASTICSEARCH_INDEX,
+        body: {
+          size: 10000,
+          from: 0,
+          query: {
+            bool: {
+              must: [
+                {
+                  terms: {
+                    'fcb_id.keyword': fcb_ids
+                  }
+                },
+                {
+                  match: {
+                    isDeleted: {
+                      query: 0,
+                      operator: 'and'
+                    }
+                  }
+                },
+                {
+                  match: {
+                    fcb_status: {
+                      query: 'enable',
+                      operator: 'and'
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      })
+
+      return result.hits?.hits.map((hit) => hit._source) || []
+    } catch (error) {
+      saveLogSystem({
+        action: 'getFoodComboResByIds',
+        class: 'FoodComboResQuery',
+        function: 'getFoodComboResByIds',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }

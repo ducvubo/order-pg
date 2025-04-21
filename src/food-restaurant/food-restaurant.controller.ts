@@ -13,10 +13,9 @@ import { UpdateStateFoodRestaurantDto } from './dto/update-state-food-restaurant
 import { Request as RequestExpress } from 'express'
 import { ApiOkResponse, ApiQuery } from '@nestjs/swagger'
 
-
 @Controller('food-restaurant')
 export class FoodRestaurantController {
-  constructor(private readonly foodRestaurantService: FoodRestaurantService) { }
+  constructor(private readonly foodRestaurantService: FoodRestaurantService) {}
 
   @Post()
   @ResponseMessage('Tạo món ăn thành công')
@@ -56,11 +55,11 @@ export class FoodRestaurantController {
   @ApiQuery({ name: 'pageIndex', required: true, type: Number, description: 'Trang hiện tại' })
   @ApiQuery({ name: 'pageSize', required: true, type: Number, description: 'Số lượng phần tử mỗi trang' })
   @ApiOkResponse({
-    description: 'Danh sách món ăn phân trang',
+    description: 'Danh sách món ăn phân trang'
   })
   async findAllPaginationListFood(
     @Query('pageIndex') pageIndex: string,
-    @Query('pageSize') pageSize: string,
+    @Query('pageSize') pageSize: string
   ): Promise<{
     meta: {
       pageIndex: number
@@ -70,9 +69,7 @@ export class FoodRestaurantController {
     }
     result: FoodRestaurantEntity[]
   }> {
-    return await this.foodRestaurantService.findAllPaginationListFood(
-      { pageSize: +pageSize, pageIndex: +pageIndex }
-    )
+    return await this.foodRestaurantService.findAllPaginationListFood({ pageSize: +pageSize, pageIndex: +pageIndex })
   }
 
   @Get('/get-food-res-slug/:food_slug')
@@ -81,10 +78,22 @@ export class FoodRestaurantController {
     return await this.foodRestaurantService.getFoodRestaurantBySlug(food_slug)
   }
 
+  @Get('/get-cart-food')
+  @ResponseMessage('Lấy danh sách món ăn trong giỏ hàng thành công')
+  async getCartFood(@Request() req: RequestExpress): Promise<FoodRestaurantEntity[]> {
+    return await this.foodRestaurantService.getFoodRestaurantCart(req.headers['x-cl-id'] as string)
+  }
+
   @Post('/add-food-to-cart')
   @ResponseMessage('Thêm món ăn vào giỏ hàng thành công')
   async addFoodToCart(@Query('food_id') food_id: string, @Request() req: RequestExpress): Promise<boolean> {
     return await this.foodRestaurantService.addFoodToCart({ food_id, id_user_guest: req.headers['x-cl-id'] as string })
+  }
+
+  @Delete('/remove-food-cart')
+  @ResponseMessage('Xóa món ăn trong giỏ hàng thành công')
+  async removeFoodCart(@Query('food_id') food_id: string, @Request() req: RequestExpress): Promise<boolean> {
+    return await this.foodRestaurantService.deleteFoodCart({ food_id, id_user_guest: req.headers['x-cl-id'] as string })
   }
 
   @Get('/list-food/:food_res_id')

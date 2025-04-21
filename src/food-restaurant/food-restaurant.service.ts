@@ -23,6 +23,7 @@ import { FoodOptionsRepo } from 'src/food-options/entities/food-options.repo'
 import { FoodOptionsQuery } from 'src/food-options/entities/food-options.query'
 import { FoodOptionsEntity } from 'src/food-options/entities/food-options.entity'
 import { getCacheIO, setCacheIO } from 'src/utils/cache'
+import kafkaInstance from '../config/kafka.config'
 
 @Injectable()
 export class FoodRestaurantService implements OnModuleInit {
@@ -32,7 +33,7 @@ export class FoodRestaurantService implements OnModuleInit {
     private readonly foodOptionsRepo: FoodOptionsRepo,
     private readonly foodOptionQuery: FoodOptionsQuery,
     private readonly dataSource: DataSource
-  ) { }
+  ) {}
 
   @Client({
     transport: Transport.GRPC,
@@ -45,10 +46,31 @@ export class FoodRestaurantService implements OnModuleInit {
   client: ClientGrpc
   private CategoryRestaurantServiceGrpc: ICategoryRestaurantServiceGprcClient
 
-  onModuleInit() {
+  async onModuleInit() {
     this.CategoryRestaurantServiceGrpc = this.client.getService<ICategoryRestaurantServiceGprcClient>(
       'CategoryRestaurantServiceGprc'
     )
+
+    const consumer = await kafkaInstance.getConsumer('SYNC_CLIENT_ID_CART_FOOD_RESTAURANT')
+    await consumer.subscribe({ topic: 'SYNC_CLIENT_ID', fromBeginning: true })
+    await consumer.run({
+      eachMessage: async ({ topic, partition, message }) => {
+        const dataMessage = message.value.toString()
+        const data = JSON.parse(dataMessage)
+        const { clientIdOld, clientIdNew } = data
+        //đồng bộ rỏ hàng
+        const listFoodCartOld = await getCacheIO(`food_cart_${clientIdOld}`)
+        const listFoodCartNew = await getCacheIO(`food_cart_${clientIdNew}`)
+        const listFoodCart = []
+        if (listFoodCartOld) {
+          listFoodCart.push(...listFoodCartOld)
+        }
+        if (listFoodCartNew) {
+          listFoodCart.push(...listFoodCartNew)
+        }
+        await setCacheIO(`food_cart_${clientIdNew}`, listFoodCart)
+      }
+    })
   }
 
   async create(createFoodRestaurantDto: CreateFoodRestaurantDto, account: IAccount): Promise<FoodRestaurantEntity> {
@@ -606,6 +628,51 @@ export class FoodRestaurantService implements OnModuleInit {
         action: 'addFoodToCart',
         class: 'FoodRestaurantService',
         function: 'addFoodToCart',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async getFoodRestaurantCart(id_user_guest: string): Promise<FoodRestaurantEntity[]> {
+    try {
+      const listFoodCart = await getCacheIO(`food_cart_${id_user_guest}`)
+      if (!listFoodCart) {
+        return []
+      }
+      const data = await this.foodRestaurantQuery.getFoodRestaurantByIds(listFoodCart)
+      return data
+    } catch (error) {
+      saveLogSystem({
+        action: 'getFoodRestaurantCart',
+        class: 'FoodRestaurantService',
+        function: 'getFoodRestaurantCart',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async deleteFoodCart({ food_id, id_user_guest }: { food_id: string; id_user_guest: string }): Promise<boolean> {
+    try {
+      const listFoodCart = await getCacheIO(`food_cart_${id_user_guest}`)
+      if (!listFoodCart) {
+        return false
+      }
+      const newListFoodCart = listFoodCart.filter((item) => item !== food_id)
+      await setCacheIO(`food_cart_${id_user_guest}`, newListFoodCart)
+      return true
+    } catch (error) {
+      saveLogSystem({
+        action: 'deleteFoodCart',
+        class: 'FoodRestaurantService',
+        function: 'deleteFoodCart',
         message: error.message,
         time: new Date(),
         error: error,
