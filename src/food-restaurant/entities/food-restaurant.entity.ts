@@ -23,9 +23,6 @@ export class FoodRestaurantEntity extends SampleEntity {
   @Column('varchar', { length: 24 })
   food_res_id?: string
 
-  @Column('varchar', { length: 24 })
-  food_cat_id?: string
-
   @Column('varchar', { length: 255 })
   food_name?: string
 

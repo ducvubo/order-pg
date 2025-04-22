@@ -18,7 +18,6 @@ import { SpecialOfferEntity, SpecialOfferSubscriber } from './special-offers/ent
 import { RateLimiterMiddleware } from './middleware/rate-limiter.middleware'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { APP_GUARD } from '@nestjs/core'
-import { InforUserModule } from './infor-user/infor-user.module';
 import { OrderFoodModule } from './order-food/order-food.module';
 import { OrderFoodEntity } from './order-food/entities/order-food.entity'
 import { FoodSnapEntity } from './order-food/entities/food-snap.entity'
@@ -76,7 +75,6 @@ import { SyncModule } from './sync/sync.module';
     FoodOptionsModule,
     UploadModule,
     SpecialOffersModule,
-    InforUserModule,
     OrderFoodModule,
     CronModule,
     OrderFoodComboModule,

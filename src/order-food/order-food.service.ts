@@ -168,7 +168,6 @@ export class OrderFoodService implements OnModuleInit {
 
           const newFoodSnap = await queryRunner.manager.save(FoodSnapEntity, {
             food_id: item.food_id,
-            food_cat_id: food.food_cat_id,
             fsnp_res_id: od_res_id,
             fsnp_name: food.food_name,
             fsnp_slug: food.food_slug,

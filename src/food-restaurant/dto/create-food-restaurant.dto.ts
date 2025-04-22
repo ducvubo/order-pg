@@ -13,12 +13,6 @@ import {
 } from 'class-validator'
 
 export class CreateFoodRestaurantDto {
-  @IsNotEmpty({ message: 'Id danh mục không được để trống' })
-  @IsString({ message: 'Id phải là chuỗi string' })
-  @MinLength(24, { message: 'Id danh mục không hợp lệ' })
-  @MaxLength(24, { message: 'Id danh mục không hợp lệ' })
-  food_cat_id: string
-
   @IsNotEmpty({ message: 'Tên món ăn không được để trống' })
   @IsString({ message: 'Tên món ăn phải là chuỗi' })
   food_name: string

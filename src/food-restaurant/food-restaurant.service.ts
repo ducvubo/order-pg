@@ -35,22 +35,7 @@ export class FoodRestaurantService implements OnModuleInit {
     private readonly dataSource: DataSource
   ) { }
 
-  @Client({
-    transport: Transport.GRPC,
-    options: {
-      package: 'CategoryRestaurantProto',
-      protoPath: join(__dirname, '../grpc/proto/category-restaurant.proto'),
-      url: process.env.URL_SERVICE_GRPC
-    }
-  })
-  client: ClientGrpc
-  private CategoryRestaurantServiceGrpc: ICategoryRestaurantServiceGprcClient
-
   async onModuleInit() {
-    this.CategoryRestaurantServiceGrpc = this.client.getService<ICategoryRestaurantServiceGprcClient>(
-      'CategoryRestaurantServiceGprc'
-    )
-
     const consumer = await kafkaInstance.getConsumer('SYNC_CLIENT_ID_CART_FOOD_RESTAURANT')
     await consumer.subscribe({ topic: 'SYNC_CLIENT_ID', fromBeginning: true })
     await consumer.run({
@@ -80,7 +65,6 @@ export class FoodRestaurantService implements OnModuleInit {
       await queryRunner.connect()
       await queryRunner.startTransaction()
       const {
-        food_cat_id,
         food_close_time,
         food_description,
         food_image,
@@ -92,21 +76,10 @@ export class FoodRestaurantService implements OnModuleInit {
         food_sort
       } = createFoodRestaurantDto
 
-      const categoryExist: IBackendGRPC = await firstValueFrom(
-        (await this.CategoryRestaurantServiceGrpc.findOneCatRes({
-          id: food_cat_id,
-          catResId: account.account_restaurant_id.toString()
-        })) as any
-      )
-
-      if (!categoryExist.status) {
-        throw new BadRequestError('Danh mục món ăn không tồn tại')
-      }
 
       const slug = slugify(createFoodRestaurantDto.food_name, { lower: true, strict: true })
 
       const newFood = await queryRunner.manager.save(FoodRestaurantEntity, {
-        food_cat_id,
         food_close_time,
         food_description,
         food_image,
@@ -195,29 +168,6 @@ export class FoodRestaurantService implements OnModuleInit {
         }
       }
 
-      const arrCatResId = dataFood.result.map((item) => item.food_cat_id)
-      const uniqueArrCatResId = [...new Set(arrCatResId)]
-
-      const dataCategory: IBackendGRPC = await firstValueFrom(
-        (await this.CategoryRestaurantServiceGrpc.findCatResByArrId({
-          arrIdCatRes: uniqueArrCatResId,
-          catResId: account.account_restaurant_id.toString()
-        })) as any
-      )
-
-      if (!dataCategory.status) {
-        throw new BadRequestError('Danh mục món ăn không tồn tại')
-      }
-
-      dataFood.result = dataFood.result.map((item) => {
-        const category = JSON.parse(dataCategory.data).find(
-          (cat: ICategoryRestaurantModel) => cat._id === item.food_cat_id
-        )
-        return {
-          ...item,
-          food_cat_id: category
-        }
-      })
 
       return dataFood
     } catch (error) {
@@ -271,30 +221,6 @@ export class FoodRestaurantService implements OnModuleInit {
         }
       }
 
-      const arrCatResId = dataFood.result.map((item) => item.food_cat_id)
-      const uniqueArrCatResId = [...new Set(arrCatResId)]
-
-      const dataCategory: IBackendGRPC = await firstValueFrom(
-        (await this.CategoryRestaurantServiceGrpc.findCatResByArrId({
-          arrIdCatRes: uniqueArrCatResId,
-          catResId: account.account_restaurant_id.toString()
-        })) as any
-      )
-
-      if (!dataCategory.status) {
-        throw new BadRequestError('Danh mục món ăn không tồn tại')
-      }
-
-      dataFood.result = dataFood.result.map((item) => {
-        const category = JSON.parse(dataCategory.data).find(
-          (cat: ICategoryRestaurantModel) => cat._id === item.food_cat_id
-        )
-        return {
-          ...item,
-          food_cat_id: category
-        }
-      })
-
       return dataFood
     } catch (error) {
       saveLogSystem({
@@ -313,24 +239,6 @@ export class FoodRestaurantService implements OnModuleInit {
   async findOne(id: string, account: IAccount): Promise<FoodRestaurantEntity & { food_options: FoodOptionsEntity[] }> {
     try {
       const data = await this.foodRestaurantQuery.findOne(id, account)
-
-      if (!data) {
-        throw new BadRequestError('Món ăn không tồn tại')
-      }
-
-      const categoryExist: IBackendGRPC = await firstValueFrom(
-        (await this.CategoryRestaurantServiceGrpc.findOneCatRes({
-          id: data.food_cat_id,
-          catResId: account.account_restaurant_id.toString()
-        })) as any
-      )
-
-      if (!categoryExist.status) {
-        throw new BadRequestError('Danh mục món ăn không tồn tại')
-      }
-
-      data.food_cat_id = JSON.parse(categoryExist.data)
-
       const food_options = await this.foodOptionQuery.findOptionByIdFood(id, account.account_restaurant_id)
 
       return {
@@ -359,7 +267,6 @@ export class FoodRestaurantService implements OnModuleInit {
       await queryRunner.startTransaction()
       const {
         food_id,
-        food_cat_id,
         food_description,
         food_close_time,
         food_open_time,
@@ -374,17 +281,6 @@ export class FoodRestaurantService implements OnModuleInit {
       const foodExits = await this.foodRestaurantQuery.findOne(food_id, account)
       if (!foodExits) {
         throw new BadRequestError('Món ăn không tồn tại')
-      }
-
-      const categoryExist: IBackendGRPC = await firstValueFrom(
-        (await this.CategoryRestaurantServiceGrpc.findOneCatRes({
-          id: updateFoodRestaurantDto.food_cat_id,
-          catResId: account.account_restaurant_id.toString()
-        })) as any
-      )
-
-      if (!categoryExist.status) {
-        throw new BadRequestError('Danh mục món ăn không tồn tại')
       }
 
       const listOptionOld = await this.foodOptionQuery.findOptionByIdFood(food_id, account.account_restaurant_id)
@@ -422,7 +318,6 @@ export class FoodRestaurantService implements OnModuleInit {
         .set({
           food_id: food_id,
           food_res_id: account.account_restaurant_id,
-          food_cat_id: food_cat_id,
           food_description: food_description,
           food_image: food_image,
           food_name: food_name,

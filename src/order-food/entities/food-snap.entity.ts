@@ -16,9 +16,6 @@ export class FoodSnapEntity extends SampleEntity {
   @Column('varchar', { length: 255 })
   food_id: string
 
-  @Column('varchar', { length: 255 })
-  food_cat_id: string
-
   @Column('varchar', { length: 24 })
   fsnp_res_id?: string
 
