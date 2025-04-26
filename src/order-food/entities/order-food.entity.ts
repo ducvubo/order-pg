@@ -44,7 +44,7 @@ export class OrderFoodEntity extends SampleEntity {
   @Column('varchar', { length: 255 })
   od_user_ward?: string
 
-  @Column('varchar', { length: 255 })
+  @Column('varchar', { length: 255, nullable: true })
   od_user_note?: string
 
   /*
