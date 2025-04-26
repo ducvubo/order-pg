@@ -14,7 +14,7 @@ export class FoodRestaurantRepo implements OnModuleInit {
     @InjectRepository(FoodRestaurantEntity)
     private readonly foodRestaurantRepository: Repository<FoodRestaurantEntity>,
     private readonly configService: ConfigService
-  ) {}
+  ) { }
 
   async onModuleInit() {
     const isSync = this.configService.get('SYNC_MONGODB_TO_ELASTICSEARCH')
@@ -215,5 +215,17 @@ export class FoodRestaurantRepo implements OnModuleInit {
       })
       throw new ServerErrorDefault(error)
     }
+  }
+
+  async deleteFood() {
+    await this.foodRestaurantRepository
+      .createQueryBuilder()
+      .delete()
+      .from(FoodRestaurantEntity)
+      .where('food_open_time = :openTime AND food_close_time = :closeTime', {
+        openTime: '00:00:00',
+        closeTime: '23:29:00',
+      })
+      .execute()
   }
 }

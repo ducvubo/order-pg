@@ -17,6 +17,7 @@ import { ResultPagination } from 'src/interface/resultPagination.interface'
 import { GetStatsDto } from 'src/order-food/dto/get-stats.dto'
 import kafkaInstance from '../config/kafka.config'
 
+//WAITING TIME REFACTOR CODE
 @Injectable()
 export class OrderFoodComboService implements OnModuleInit {
   constructor(
@@ -25,7 +26,7 @@ export class OrderFoodComboService implements OnModuleInit {
     private readonly orderFoodComboRepository: Repository<OrderFoodComboEntity>,
     @InjectRepository(OrderFoodComboItemEntity)
     private readonly orderFoodComboItemRepository: Repository<OrderFoodComboItemEntity>
-  ) {}
+  ) { }
 
   async onModuleInit() {
     const consumer = await kafkaInstance.getConsumer('SYNC_CLIENT_ID_ORDER_FOOD_COMBO')
@@ -961,18 +962,18 @@ export class OrderFoodComboService implements OnModuleInit {
       pageIndex: number
       keyword: string
       od_cb_status:
-        | 'waiting_confirm_customer'
-        | 'over_time_customer'
-        | 'waiting_confirm_restaurant'
-        | 'waiting_shipping'
-        | 'shipping'
-        | 'delivered_customer'
-        | 'received_customer'
-        | 'cancel_customer'
-        | 'cancel_restaurant'
-        | 'complaint'
-        | 'complaint_done'
-        | 'all'
+      | 'waiting_confirm_customer'
+      | 'over_time_customer'
+      | 'waiting_confirm_restaurant'
+      | 'waiting_shipping'
+      | 'shipping'
+      | 'delivered_customer'
+      | 'received_customer'
+      | 'cancel_customer'
+      | 'cancel_restaurant'
+      | 'complaint'
+      | 'complaint_done'
+      | 'all'
       toDate: string
       fromDate: string
     },
@@ -1064,18 +1065,18 @@ export class OrderFoodComboService implements OnModuleInit {
     pageIndex: number
     keyword: string
     od_cb_status:
-      | 'waiting_confirm_customer'
-      | 'over_time_customer'
-      | 'waiting_confirm_restaurant'
-      | 'waiting_shipping'
-      | 'shipping'
-      | 'delivered_customer'
-      | 'received_customer'
-      | 'cancel_customer'
-      | 'cancel_restaurant'
-      | 'complaint'
-      | 'complaint_done'
-      | 'all'
+    | 'waiting_confirm_customer'
+    | 'over_time_customer'
+    | 'waiting_confirm_restaurant'
+    | 'waiting_shipping'
+    | 'shipping'
+    | 'delivered_customer'
+    | 'received_customer'
+    | 'cancel_customer'
+    | 'cancel_restaurant'
+    | 'complaint'
+    | 'complaint_done'
+    | 'all'
     toDate: string
     fromDate: string
   }): Promise<{

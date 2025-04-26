@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, Request } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards, Request, UseInterceptors, UploadedFile } from '@nestjs/common'
 import { FoodRestaurantService } from './food-restaurant.service'
 import { Acccount, ResponseMessage } from 'src/decorator/customize'
 import { CreateFoodRestaurantDto } from './dto/create-food-restaurant.dto'
@@ -11,7 +11,8 @@ import { UpdateStatusFoodRestaurantDto } from './dto/update-status-food-restaura
 import { UpdateResult } from 'typeorm'
 import { UpdateStateFoodRestaurantDto } from './dto/update-state-food-restaurant.dto'
 import { Request as RequestExpress } from 'express'
-import { ApiOkResponse, ApiQuery } from '@nestjs/swagger'
+import { ApiBody, ApiConsumes, ApiOkResponse, ApiOperation, ApiQuery } from '@nestjs/swagger'
+import { FileInterceptor } from '@nestjs/platform-express'
 
 @Controller('food-restaurant')
 export class FoodRestaurantController {
@@ -47,6 +48,30 @@ export class FoodRestaurantController {
     @Acccount() account: IAccount
   ): Promise<UpdateResult> {
     return await this.foodRestaurantService.update(updateFoodRestaurantDto, account)
+  }
+
+  @Post('/import-food-image')
+  @ApiOperation({ summary: 'Nhận diện món ăn từ ảnh' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Tải lên ảnh menu để nhận diện',
+    schema: {
+      type: 'object',
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('image'))
+  @ResponseMessage('Nhận diện món ăn từ ảnh thành công')
+  async importMenuImage(@UploadedFile() file: Express.Multer.File): Promise<any> {
+    if (!file) {
+      throw new Error('Không có file được tải lên');
+    }
+    return await this.foodRestaurantService.extractMenuFromImage(file.buffer);
   }
 
   //findAllPaginationListFood

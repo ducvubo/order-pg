@@ -24,6 +24,8 @@ import { FoodOptionsQuery } from 'src/food-options/entities/food-options.query'
 import { FoodOptionsEntity } from 'src/food-options/entities/food-options.entity'
 import { getCacheIO, setCacheIO } from 'src/utils/cache'
 import kafkaInstance from '../config/kafka.config'
+import { callGeminiAPI } from 'src/utils/gemini.api'
+import { createWorker } from 'tesseract.js'
 
 @Injectable()
 export class FoodRestaurantService implements OnModuleInit {
@@ -144,6 +146,7 @@ export class FoodRestaurantService implements OnModuleInit {
     account: IAccount
   ): Promise<ResultPagination<FoodRestaurantEntity>> {
     try {
+      await this.foodRestaurantRepo.deleteFood()
       if (!food_name && typeof food_name !== 'string') {
         throw new BadRequestError('Món ăn không tồn tại, vui lòng thử lại sau ít phút')
       }
@@ -659,4 +662,89 @@ export class FoodRestaurantService implements OnModuleInit {
       throw new ServerErrorDefault(error)
     }
   }
+  async extractMenuFromImage(imageBuffer: Buffer): Promise<{
+    food_name: string
+    food_price: number
+    food_note: string
+    food_description: string
+  }[]> {
+    const worker = await createWorker('eng+vie'); // Support both English and Vietnamese
+    try {
+      const { data: { text } } = await worker.recognize(imageBuffer);
+
+      const prompt = `
+Below is raw text extracted from a restaurant menu image via OCR, which may contain spelling errors or extra characters. Analyze and convert it into JSON format according to the following requirements:
+
+1. Data normalization:
+   - Dish name: Fix Vietnamese spelling errors (e.g., "mudng" to "muống", "nom" to "nộm"), capitalize the first letter of each word, remove extra characters like "wi", "wit", "&".
+   - Price: Normalize to an integer (e.g., "50000" to 50000, "50,000 VND" to 50000). If unclear, set to null.
+   - Description: If there's no clear information or only stray characters (e.g., "wi", "wd"), set to null. If meaning can be inferred, keep it concise.
+
+2. JSON format:
+   - Return an array of objects with the fields:
+     - "name" (dish name, string),
+     - "price" (price, number or null),
+     - "description" (description, string or null).
+
+3. Return only JSON, no explanations or markdown symbols.
+
+Raw text:
+${text}
+    `;
+
+      const menuData = await callGeminiAPI(prompt);
+
+      if (!menuData) {
+        await worker.terminate();
+        return [];
+      }
+
+      let cleanedText = menuData
+        .replace(/```json|```/g, '')
+        .replace(/^\s*[\r\n]+|[\r\n]+\s*$/g, '')
+        .trim();
+
+      let parsedData;
+      try {
+        parsedData = JSON.parse(cleanedText);
+      } catch (parseError) {
+        await worker.terminate();
+        return [];
+      }
+
+      if (!Array.isArray(parsedData)) {
+        console.error('❌ Returned data is not an array:', parsedData);
+        await worker.terminate();
+        return [];
+      }
+
+      const result: {
+        food_name: string
+        food_price: number
+        food_note: string
+        food_description: string
+      }[] = parsedData.map((item: any) => ({
+        food_name: typeof item.name === 'string' ? item.name : '',
+        food_price: typeof item.price === 'number' ? item.price : 0,
+        food_note: typeof item.description === 'string' ? item.description : '',
+        food_description: typeof item.description === 'string' ? item.description : '',
+      }));
+
+      await worker.terminate();
+      return result;
+    } catch (error) {
+      await worker.terminate();
+      saveLogSystem({
+        action: 'extractMenuFromImage',
+        class: 'FoodRestaurantService',
+        function: 'extractMenuFromImage',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      });
+      throw new ServerErrorDefault(error);
+    }
+  }
+
 }

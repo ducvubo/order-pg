@@ -15,6 +15,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { GetStatsDto } from './dto/get-stats.dto'
 import kafkaInstance from '../config/kafka.config'
 
+//WAITING TIME REFACTOR CODE
 @Injectable()
 export class OrderFoodService implements OnModuleInit {
   constructor(
