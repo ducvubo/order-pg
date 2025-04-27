@@ -216,6 +216,18 @@ export class OrderFoodComboService implements OnModuleInit {
         })
       })
 
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: createOrderFoodComboDto.od_cb_user_name,
+          noti_content: `Nhà hàng vừa có đơn hàng đặt combo mới từ ${createOrderFoodComboDto.od_cb_user_name}`,
+          noti_title: `Đặt combo`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+
       await queryRunner.commitTransaction()
       return newOrderFoodCombo
     } catch (error) {

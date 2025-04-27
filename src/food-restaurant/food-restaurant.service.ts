@@ -26,6 +26,7 @@ import { getCacheIO, setCacheIO } from 'src/utils/cache'
 import kafkaInstance from '../config/kafka.config'
 import { callGeminiAPI } from 'src/utils/gemini.api'
 import { createWorker } from 'tesseract.js'
+import { sendMessageToKafka } from 'src/utils/kafka'
 
 @Injectable()
 export class FoodRestaurantService implements OnModuleInit {
@@ -115,6 +116,19 @@ export class FoodRestaurantService implements OnModuleInit {
       }
 
       await queryRunner.commitTransaction()
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Món ăn ${createFoodRestaurantDto.food_name} vừa được thêm mới`,
+          noti_title: `Món ăn`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+
       return newFood
     } catch (error) {
       await queryRunner.rollbackTransaction()
@@ -339,6 +353,19 @@ export class FoodRestaurantService implements OnModuleInit {
         .execute()
 
       await queryRunner.commitTransaction()
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Món ăn ${updateFoodRestaurantDto.food_name} vừa được cập nhật`,
+          noti_title: `Món ăn`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+
       return updated
     } catch (error) {
       await queryRunner.rollbackTransaction()
@@ -369,12 +396,27 @@ export class FoodRestaurantService implements OnModuleInit {
         throw new BadRequestError('Món ăn không tồn tại')
       }
 
-      return await this.foodRestaurantRepo.updateStatus({
+      const update = await this.foodRestaurantRepo.updateStatus({
         food_id: food_id,
         food_res_id: account.account_restaurant_id,
         food_status: food_status,
         updatedBy: account.account_employee_id ? account.account_employee_id : account.account_restaurant_id
       })
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Món ăn ${foodExits.food_name} vừa được cập nhật trạng thái`,
+          noti_title: `Món ăn`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+
+      return update
+
     } catch (error) {
       saveLogSystem({
         action: 'updateStatus',
@@ -428,11 +470,24 @@ export class FoodRestaurantService implements OnModuleInit {
         throw new BadRequestError('Món ăn không tồn tại')
       }
 
-      return await this.foodRestaurantRepo.remove({
+      const deleted = await this.foodRestaurantRepo.remove({
         food_id: id,
         food_res_id: account.account_restaurant_id,
         deletedBy: account.account_employee_id ? account.account_employee_id : account.account_restaurant_id
       })
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Món ăn ${foodExits.food_name} vừa được chuyển vào thùng rác`,
+          noti_title: `Món ăn`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+      return deleted
     } catch (error) {
       saveLogSystem({
         action: 'remove',
@@ -454,11 +509,27 @@ export class FoodRestaurantService implements OnModuleInit {
         throw new BadRequestError('Món ăn không tồn tại')
       }
 
-      return await this.foodRestaurantRepo.restore({
+      const restore = await this.foodRestaurantRepo.restore({
         food_id: id,
         food_res_id: account.account_restaurant_id,
         updatedBy: account.account_employee_id ? account.account_employee_id : account.account_restaurant_id
       })
+
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Món ăn ${foodExits.food_name} vừa được khôi phục`,
+          noti_title: `Món ăn`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+
+      return restore
+
     } catch (error) {
       saveLogSystem({
         action: 'restore',

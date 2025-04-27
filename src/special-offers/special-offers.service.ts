@@ -11,26 +11,41 @@ import { ResultPagination } from 'src/interface/resultPagination.interface'
 import { UpdateSpecialOfferDto } from './dto/update-special-offer.dto'
 import { UpdateResult } from 'typeorm'
 import { UpdateStatusSpecialOfferDto } from './dto/update-status-special-offer.dto'
+import { sendMessageToKafka } from 'src/utils/kafka'
 
 @Injectable()
 export class SpecialOffersService {
   constructor(
     private readonly specialOfferQuery: SpecialOfferQuery,
     private readonly specialOfferRepo: SpecialOfferRepo
-  ) {}
+  ) { }
 
   async createSpecialOffer(
     createSpecialOfferDto: CreateSpecialOfferDto,
     account: IAccount
   ): Promise<SpecialOfferEntity> {
     try {
-      return await this.specialOfferRepo.createSpecialOffer({
+      const special = await this.specialOfferRepo.createSpecialOffer({
         spo_res_id: account.account_restaurant_id,
         spo_title: createSpecialOfferDto.spo_title,
         spo_description: createSpecialOfferDto.spo_description,
         createdBy: buidByAccount(account),
         updatedBy: buidByAccount(account)
       })
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Ưu đãi ${createSpecialOfferDto.spo_title} vừa được thêm mới`,
+          noti_title: `Ưu đãi`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+
+      return special
     } catch (error) {
       saveLogSystem({
         action: 'createSpecialOffer',
@@ -68,13 +83,27 @@ export class SpecialOffersService {
       if (!specialOfferExist) {
         throw new BadRequestError('Ưu đãi không tồn tại')
       }
-      return this.specialOfferRepo.updateSpecialOffer({
+      const update = await this.specialOfferRepo.updateSpecialOffer({
         spo_title: updateSpecialOfferDto.spo_title,
         spo_description: updateSpecialOfferDto.spo_description,
         updatedBy: buidByAccount(account),
         spo_res_id: account.account_restaurant_id,
         spo_id: updateSpecialOfferDto.spo_id
       })
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Ưu đãi ${updateSpecialOfferDto.spo_title} vừa được cập nhật`,
+          noti_title: `Ưu đãi`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+      return update
+
     } catch (error) {
       saveLogSystem({
         action: 'updateSpecialOffer',
@@ -95,7 +124,20 @@ export class SpecialOffersService {
       if (!specialOfferExist) {
         throw new BadRequestError('Ưu đãi không tồn tại')
       }
-      return this.specialOfferRepo.removeSpecialOffer(spo_id, account.account_restaurant_id, buidByAccount(account))
+      const deleted = await this.specialOfferRepo.removeSpecialOffer(spo_id, account.account_restaurant_id, buidByAccount(account))
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Ưu đãi ${specialOfferExist.spo_title} vừa được xóa`,
+          noti_title: `Ưu đãi`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+      return deleted
     } catch (error) {
       saveLogSystem({
         action: 'deleteSpecialOffer',
@@ -116,7 +158,20 @@ export class SpecialOffersService {
       if (!specialOfferExist) {
         throw new BadRequestError('Đơn vị đo không tồn tại')
       }
-      return this.specialOfferRepo.restoreSpecialOffer(spo_id, account.account_restaurant_id, buidByAccount(account))
+      const restore = await this.specialOfferRepo.restoreSpecialOffer(spo_id, account.account_restaurant_id, buidByAccount(account))
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Ưu đãi ${specialOfferExist.spo_title} vừa được khôi phục`,
+          noti_title: `Ưu đãi`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+
+      return restore
     } catch (error) {
       saveLogSystem({
         action: 'restoreSpecialOffer',
@@ -140,12 +195,26 @@ export class SpecialOffersService {
       if (!specialOfferExist) {
         throw new BadRequestError('Ưu đãi không tồn tại')
       }
-      return this.specialOfferRepo.updateStatusSpecialOffer({
+      const update = await this.specialOfferRepo.updateStatusSpecialOffer({
         spo_id: updateStatusSpecialOfferDto.spo_id,
         spo_res_id: account.account_restaurant_id,
         spo_status: updateStatusSpecialOfferDto.spo_status,
         updatedBy: buidByAccount(account)
       })
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Ưu đãi ${specialOfferExist.spo_title} vừa được cập nhật trạng thái`,
+          noti_title: `Ưu đãi`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+      return update
+
     } catch (error) {
       saveLogSystem({
         action: 'updateStatusSpecialOffer',

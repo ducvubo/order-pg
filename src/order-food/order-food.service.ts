@@ -24,7 +24,7 @@ export class OrderFoodService implements OnModuleInit {
     private readonly orderFoodRepository: Repository<OrderFoodEntity>,
     @InjectRepository(OrderFoodItemEntity)
     private readonly orderFoodItemRepository: Repository<OrderFoodItemEntity>
-  ) {}
+  ) { }
 
   async onModuleInit() {
     const consumer = await kafkaInstance.getConsumer('SYNC_CLIENT_ID_ORDER_FOOD')
@@ -235,6 +235,18 @@ export class OrderFoodService implements OnModuleInit {
           subject: 'Xác nhận đơn hàng',
           text: `Bạn nhận được email này vì có một đơn hàng mới từ khách hàng ${od_user_name} với số điện thoại ${od_user_phone} và email ${od_user_email}. Vui lòng xác nhận đơn hàng trong vòng 10 phút. Để xác nhận đơn hàng, vui lòng nhấp vào liên kết bên dưới . Nếu bạn không phải là người nhận email này, vui lòng bỏ qua nó.`,
           link: linkConfirm
+        })
+      })
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: createOrderFoodDto.od_res_id,
+          noti_content: `Nhà hàng vừa có đơn hàng đặt món mới từ ${createOrderFoodDto.od_user_name}`,
+          noti_title: `Đặt món`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
         })
       })
 
@@ -973,18 +985,18 @@ export class OrderFoodService implements OnModuleInit {
       pageIndex: number
       keyword: string
       od_status:
-        | 'waiting_confirm_customer'
-        | 'over_time_customer'
-        | 'waiting_confirm_restaurant'
-        | 'waiting_shipping'
-        | 'shipping'
-        | 'delivered_customer'
-        | 'received_customer'
-        | 'cancel_customer'
-        | 'cancel_restaurant'
-        | 'complaint'
-        | 'complaint_done'
-        | 'all'
+      | 'waiting_confirm_customer'
+      | 'over_time_customer'
+      | 'waiting_confirm_restaurant'
+      | 'waiting_shipping'
+      | 'shipping'
+      | 'delivered_customer'
+      | 'received_customer'
+      | 'cancel_customer'
+      | 'cancel_restaurant'
+      | 'complaint'
+      | 'complaint_done'
+      | 'all'
       toDate: string
       fromDate: string
     },
@@ -1076,18 +1088,18 @@ export class OrderFoodService implements OnModuleInit {
     pageIndex: number
     keyword: string
     od_status:
-      | 'waiting_confirm_customer'
-      | 'over_time_customer'
-      | 'waiting_confirm_restaurant'
-      | 'waiting_shipping'
-      | 'shipping'
-      | 'delivered_customer'
-      | 'received_customer'
-      | 'cancel_customer'
-      | 'cancel_restaurant'
-      | 'complaint'
-      | 'complaint_done'
-      | 'all'
+    | 'waiting_confirm_customer'
+    | 'over_time_customer'
+    | 'waiting_confirm_restaurant'
+    | 'waiting_shipping'
+    | 'shipping'
+    | 'delivered_customer'
+    | 'received_customer'
+    | 'cancel_customer'
+    | 'cancel_restaurant'
+    | 'complaint'
+    | 'complaint_done'
+    | 'all'
     toDate: string
     fromDate: string
   }): Promise<{

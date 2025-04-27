@@ -36,14 +36,6 @@ import { SyncModule } from './sync/sync.module';
       isGlobal: true
     }),
     ScheduleModule.forRoot(),
-    // ThrottlerModule.forRoot({
-    //   throttlers: [
-    //     {
-    //       ttl: 60000,
-    //       limit: 10000
-    //     }
-    //   ]
-    // }),
     TypeOrmModule.forRoot({
       type: 'oracle',
       host: '160.187.229.179',

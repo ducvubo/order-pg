@@ -18,6 +18,7 @@ import { UpdateStateFoodComboResDto } from './dto/update-state-food-combo-res.dt
 import { FoodRestaurantQuery } from 'src/food-restaurant/entities/food-restaurant.query'
 import { getCacheIO, setCacheIO } from 'src/utils/cache'
 import kafkaInstance from '../config/kafka.config'
+import { sendMessageToKafka } from 'src/utils/kafka'
 
 @Injectable()
 export class ComboFoodResService implements OnModuleInit {
@@ -28,7 +29,7 @@ export class ComboFoodResService implements OnModuleInit {
     private readonly foodComboItemsRepo: FoodComboItemsRepo,
     private readonly foodRestaurantQuery: FoodRestaurantQuery,
     private readonly dataSource: DataSource
-  ) {}
+  ) { }
 
   async onModuleInit() {
     const consumer = await kafkaInstance.getConsumer('SYNC_CLIENT_ID_CART_FOOD_COMBO')
@@ -112,6 +113,19 @@ export class ComboFoodResService implements OnModuleInit {
       })
 
       await Promise.all(savePromises)
+
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Combo món ăn ${createFoodComboResDto.fcb_name} vừa được tạo mới`,
+          noti_title: `Combo món ăn`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
 
       await queryRunner.commitTransaction()
       return combo
@@ -201,6 +215,19 @@ export class ComboFoodResService implements OnModuleInit {
         .execute()
 
       await queryRunner.commitTransaction()
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Combo món ăn ${updateFoodComboResDto.fcb_name} vừa được cập nhật`,
+          noti_title: `Combo món ăn`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+
       return update
     } catch (error) {
       await queryRunner.rollbackTransaction()
@@ -330,7 +357,21 @@ export class ComboFoodResService implements OnModuleInit {
         throw new BadRequestError('Combo không tồn tại')
       }
 
-      return await this.foodComboResRepo.deleteComboFoodRes(fcb_id, account)
+      const deleted = await this.foodComboResRepo.deleteComboFoodRes(fcb_id, account)
+
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Combo món ăn ${combo.fcb_name} vừa được xóa`,
+          noti_title: `Combo món ăn`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+      return deleted
+
     } catch (error) {
       saveLogSystem({
         action: 'deleteComboFoodRes',
@@ -352,7 +393,19 @@ export class ComboFoodResService implements OnModuleInit {
         throw new BadRequestError('Combo không tồn tại')
       }
 
-      return await this.foodComboResRepo.restoreComboFoodRes(fcb_id, account)
+      const restore = await this.foodComboResRepo.restoreComboFoodRes(fcb_id, account)
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Combo món ăn ${combo.fcb_name} vừa được khôi phục`,
+          noti_title: `Combo món ăn`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+      return restore
     } catch (error) {
       saveLogSystem({
         action: 'restoreComboFoodRes',
@@ -380,7 +433,19 @@ export class ComboFoodResService implements OnModuleInit {
         throw new BadRequestError('Combo không tồn tại')
       }
 
-      return await this.foodComboResRepo.updateStatusComboFoodRes(updateStatusFoodComboResDto, account)
+      const update = await this.foodComboResRepo.updateStatusComboFoodRes(updateStatusFoodComboResDto, account)
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Combo món ăn ${combo.fcb_name} vừa được cập nhật trạng thái`,
+          noti_title: `Combo món ăn`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+      return update
     } catch (error) {
       saveLogSystem({
         action: 'updateStatusComboFoodRes',
@@ -407,7 +472,19 @@ export class ComboFoodResService implements OnModuleInit {
       if (!combo) {
         throw new BadRequestError('Combo không tồn tại')
       }
-      return await this.foodComboResRepo.updateStateComboFoodRes(updateStateFoodComboResDto, account)
+      const update = await this.foodComboResRepo.updateStateComboFoodRes(updateStateFoodComboResDto, account)
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: account.account_restaurant_id,
+          noti_content: `Combo món ăn ${combo.fcb_name} vừa được cập nhật trạng thái`,
+          noti_title: `Combo món ăn`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+      return update
     } catch (error) {
       saveLogSystem({
         action: 'updateStateComboFoodRes',
