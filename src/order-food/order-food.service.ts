@@ -238,17 +238,7 @@ export class OrderFoodService implements OnModuleInit {
         })
       })
 
-      sendMessageToKafka({
-        topic: 'NOTIFICATION_ACCOUNT_CREATE',
-        message: JSON.stringify({
-          restaurantId: createOrderFoodDto.od_res_id,
-          noti_content: `Nhà hàng vừa có đơn hàng đặt món mới từ ${createOrderFoodDto.od_user_name}`,
-          noti_title: `Đặt món`,
-          noti_type: 'table',
-          noti_metadata: JSON.stringify({ text: 'test' }),
-          sendObject: 'all_account'
-        })
-      })
+
 
       await queryRunner.commitTransaction()
       return newOrderFood
@@ -293,7 +283,19 @@ export class OrderFoodService implements OnModuleInit {
         }
       ])
 
-      return await this.orderFoodRepository.save(orderFood)
+      const update = await this.orderFoodRepository.save(orderFood)
+      sendMessageToKafka({
+        topic: 'NOTIFICATION_ACCOUNT_CREATE',
+        message: JSON.stringify({
+          restaurantId: orderFood.od_res_id,
+          noti_content: `Nhà hàng vừa có đơn hàng đặt món mới từ ${orderFood.od_user_name}`,
+          noti_title: `Đặt món`,
+          noti_type: 'table',
+          noti_metadata: JSON.stringify({ text: 'test' }),
+          sendObject: 'all_account'
+        })
+      })
+      return update
     } catch (error) {
       saveLogSystem({
         action: 'guestConfirmOrderFood',
