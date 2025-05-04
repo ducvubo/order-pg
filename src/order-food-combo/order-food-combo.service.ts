@@ -994,12 +994,12 @@ export class OrderFoodComboService implements OnModuleInit {
     account: IAccount
   ): Promise<ResultPagination<OrderFoodComboEntity>> {
     try {
-      const whereConditions: any = {
+      const commonConditions: any = {
         od_cb_res_id: account.account_restaurant_id
       }
 
       if (od_cb_status !== 'all') {
-        whereConditions.od_cb_status = od_cb_status
+        commonConditions.od_cb_status = od_cb_status
       }
 
       if (fromDate || toDate) {
@@ -1009,24 +1009,31 @@ export class OrderFoodComboService implements OnModuleInit {
         if (from && to && !isNaN(from.getTime()) && !isNaN(to.getTime())) {
           const start = from < to ? from : to
           const end = from < to ? to : from
-          whereConditions.od_cb_created_at = Between(start, end)
+          commonConditions.od_cb_created_at = Between(start, end)
         } else if (from && !isNaN(from.getTime())) {
-          whereConditions.od_cb_created_at = MoreThanOrEqual(from)
+          commonConditions.od_cb_created_at = MoreThanOrEqual(from)
         } else if (to && !isNaN(to.getTime())) {
-          whereConditions.od_cb_created_at = LessThanOrEqual(to)
+          commonConditions.od_cb_created_at = LessThanOrEqual(to)
         }
       }
 
+      let where: any
+
       if (keyword) {
-        whereConditions.od_user_name = Like(`%${keyword}%`)
-        whereConditions.od_user_phone = Like(`%${keyword}%`)
-        whereConditions.od_user_email = Like(`%${keyword}%`)
-        whereConditions.od_user_address = Like(`%${keyword}%`)
-        whereConditions.od_user_note = Like(`%${keyword}%`)
+        const likeKeyword = Like(`%${keyword}%`)
+        where = [
+          { ...commonConditions, od_user_name: likeKeyword },
+          { ...commonConditions, od_user_phone: likeKeyword },
+          { ...commonConditions, od_user_email: likeKeyword },
+          { ...commonConditions, od_user_address: likeKeyword },
+          { ...commonConditions, od_user_note: likeKeyword },
+        ]
+      } else {
+        where = commonConditions
       }
 
-      const orderFoodCombo = await this.orderFoodComboRepository.find({
-        where: whereConditions,
+      const [orderFoodCombo, total] = await this.orderFoodComboRepository.findAndCount({
+        where,
         order: {
           od_cb_created_at: 'DESC'
         },
@@ -1035,9 +1042,6 @@ export class OrderFoodComboService implements OnModuleInit {
         relations: ['orderItems', 'orderItems.foodComboSnap']
       })
 
-      const total = await this.orderFoodComboRepository.count({
-        where: whereConditions
-      })
 
       const totalPage = Math.ceil(total / pageSize)
       const result: ResultPagination<OrderFoodComboEntity> = {
@@ -1103,12 +1107,12 @@ export class OrderFoodComboService implements OnModuleInit {
     result: OrderFoodComboEntity[]
   }> {
     try {
-      const whereConditions: any = {
+      const commonConditions: any = {
         id_user_guest
       }
 
       if (od_cb_status !== 'all') {
-        whereConditions.od_cb_status = od_cb_status
+        commonConditions.od_cb_status = od_cb_status
       }
 
       if (fromDate || toDate) {
@@ -1118,24 +1122,31 @@ export class OrderFoodComboService implements OnModuleInit {
         if (from && to && !isNaN(from.getTime()) && !isNaN(to.getTime())) {
           const start = from < to ? from : to
           const end = from < to ? to : from
-          whereConditions.od_cb_created_at = Between(start, end)
+          commonConditions.od_cb_created_at = Between(start, end)
         } else if (from && !isNaN(from.getTime())) {
-          whereConditions.od_cb_created_at = MoreThanOrEqual(from)
+          commonConditions.od_cb_created_at = MoreThanOrEqual(from)
         } else if (to && !isNaN(to.getTime())) {
-          whereConditions.od_cb_created_at = LessThanOrEqual(to)
+          commonConditions.od_cb_created_at = LessThanOrEqual(to)
         }
       }
 
+      let where: any
+
       if (keyword) {
-        whereConditions.od_user_name = Like(`%${keyword}%`)
-        whereConditions.od_user_phone = Like(`%${keyword}%`)
-        whereConditions.od_user_email = Like(`%${keyword}%`)
-        whereConditions.od_user_address = Like(`%${keyword}%`)
-        whereConditions.od_user_note = Like(`%${keyword}%`)
+        const likeCondition = Like(`%${keyword}%`)
+        where = [
+          { ...commonConditions, od_user_name: likeCondition },
+          { ...commonConditions, od_user_phone: likeCondition },
+          { ...commonConditions, od_user_email: likeCondition },
+          { ...commonConditions, od_user_address: likeCondition },
+          { ...commonConditions, od_user_note: likeCondition },
+        ]
+      } else {
+        where = commonConditions
       }
 
-      const orderFoodCombo = await this.orderFoodComboRepository.find({
-        where: whereConditions,
+      const [orderFoodCombo, total] = await this.orderFoodComboRepository.findAndCount({
+        where,
         order: {
           od_cb_created_at: 'DESC'
         },
@@ -1144,9 +1155,6 @@ export class OrderFoodComboService implements OnModuleInit {
         relations: ['orderItems', 'orderItems.foodComboSnap']
       })
 
-      const total = await this.orderFoodComboRepository.count({
-        where: whereConditions
-      })
 
       const totalPage = Math.ceil(total / pageSize)
       const result: {
