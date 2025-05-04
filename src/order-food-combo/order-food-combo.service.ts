@@ -1022,11 +1022,11 @@ export class OrderFoodComboService implements OnModuleInit {
       if (keyword) {
         const likeKeyword = Like(`%${keyword}%`)
         where = [
-          { ...commonConditions, od_user_name: likeKeyword },
-          { ...commonConditions, od_user_phone: likeKeyword },
-          { ...commonConditions, od_user_email: likeKeyword },
-          { ...commonConditions, od_user_address: likeKeyword },
-          { ...commonConditions, od_user_note: likeKeyword },
+          { ...commonConditions, od_cb_user_name: likeKeyword },
+          { ...commonConditions, od_cb_user_phone: likeKeyword },
+          { ...commonConditions, od_cb_user_email: likeKeyword },
+          { ...commonConditions, od_cb_user_address: likeKeyword },
+          { ...commonConditions, od_cb_user_note: likeKeyword },
         ]
       } else {
         where = commonConditions
@@ -1135,11 +1135,11 @@ export class OrderFoodComboService implements OnModuleInit {
       if (keyword) {
         const likeCondition = Like(`%${keyword}%`)
         where = [
-          { ...commonConditions, od_user_name: likeCondition },
-          { ...commonConditions, od_user_phone: likeCondition },
-          { ...commonConditions, od_user_email: likeCondition },
-          { ...commonConditions, od_user_address: likeCondition },
-          { ...commonConditions, od_user_note: likeCondition },
+          { ...commonConditions, od_cb_user_name: likeCondition },
+          { ...commonConditions, od_cb_user_phone: likeCondition },
+          { ...commonConditions, od_cb_user_email: likeCondition },
+          { ...commonConditions, od_cb_user_address: likeCondition },
+          { ...commonConditions, od_cb_user_note: likeCondition },
         ]
       } else {
         where = commonConditions
