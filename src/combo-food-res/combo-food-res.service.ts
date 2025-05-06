@@ -19,6 +19,7 @@ import { FoodRestaurantQuery } from 'src/food-restaurant/entities/food-restauran
 import { getCacheIO, setCacheIO } from 'src/utils/cache'
 import kafkaInstance from '../config/kafka.config'
 import { sendMessageToKafka } from 'src/utils/kafka'
+import { generateSlug } from 'src/utils'
 
 @Injectable()
 export class ComboFoodResService implements OnModuleInit {
@@ -84,7 +85,7 @@ export class ComboFoodResService implements OnModuleInit {
         })
       )
 
-      const slug = slugify(fcb_name, { lower: true, strict: true })
+      const slug = generateSlug(fcb_name)
 
       // tạo combo
       const combo = await queryRunner.manager.save(FoodComboResEntity, {

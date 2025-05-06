@@ -1,6 +1,6 @@
 import md5 from 'md5'
 import { IAccount } from 'src/guard/interface/account.interface'
-
+import slugify from 'slugify'
 export const formatDate = (date: Date): string => {
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
@@ -53,4 +53,25 @@ export const buidByAccount = (account: IAccount) => {
     email: account.account_email,
     id: account.account_employee_id ? account.account_employee_id : account.account_restaurant_id
   })
+}
+
+
+export const generateOtp = (): string => {
+  const otp = Math.floor(100000 + Math.random() * 900000)
+  return otp.toString()
+}
+export const generateSlug = (input: string): string => {
+  // Chuyển chuỗi thành chữ thường và loại bỏ dấu tiếng Việt
+  const slug = slugify(input, {
+    replacement: '-', // replace spaces with replacement character, defaults to `-`
+    remove: undefined, // remove characters that match regex, defaults to `undefined`
+    lower: false, // convert to lower case, defaults to `false`
+    strict: false, // strip special characters except replacement, defaults to `false`
+    locale: 'vi', // language code of the locale to use
+    trim: true // trim leading and trailing replacement chars, defaults to `true`
+  })
+
+  const uuid = generateOtp()
+
+  return `${slug}-${uuid}.html`
 }

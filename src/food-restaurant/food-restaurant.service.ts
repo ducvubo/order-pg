@@ -27,6 +27,7 @@ import kafkaInstance from '../config/kafka.config'
 import { callGeminiAPI } from 'src/utils/gemini.api'
 import { createWorker } from 'tesseract.js'
 import { sendMessageToKafka } from 'src/utils/kafka'
+import { generateSlug } from 'src/utils'
 
 @Injectable()
 export class FoodRestaurantService implements OnModuleInit {
@@ -80,7 +81,7 @@ export class FoodRestaurantService implements OnModuleInit {
       } = createFoodRestaurantDto
 
 
-      const slug = slugify(createFoodRestaurantDto.food_name, { lower: true, strict: true })
+      const slug = generateSlug(createFoodRestaurantDto.food_name)
 
       const newFood = await queryRunner.manager.save(FoodRestaurantEntity, {
         food_close_time,
