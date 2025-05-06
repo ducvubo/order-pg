@@ -132,6 +132,7 @@ export class FoodRestaurantQuery {
       const result = await this.elasticSearch.search({
         index: FOOD_RESTAURANT_ELASTICSEARCH_INDEX,
         body: {
+          _source: ['food_id', 'food_name', 'food_image', 'food_price', 'food_open_time', 'food_close_time', 'food_note', 'food_description', 'food_state', 'food_status'],
           query,
           from,
           size: pageSize,
