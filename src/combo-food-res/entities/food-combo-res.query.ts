@@ -126,6 +126,7 @@ export class FoodComboResQuery {
       const result = await this.elasticSearch.search({
         index: FOOD_COMBO_RES_ELASTICSEARCH_INDEX,
         body: {
+          _source: ['fcb_name', 'fcb_image', 'fcb_price', 'fcb_open_time', 'fcb_close_time', 'fcb_note', 'fcb_description', 'fcb_state', 'fcb_status'],
           query,
           from,
           size: pageSize,
