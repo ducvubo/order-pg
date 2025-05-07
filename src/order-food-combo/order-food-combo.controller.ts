@@ -176,4 +176,11 @@ export class OrderFoodComboController {
   async getRecentComboOrders(@Query() dto: GetStatsDto, @Acccount() account: IAccount) {
     return this.orderFoodComboService.getRecentComboOrders(dto, account);
   }
+
+  @Get('status-distribution')
+  @UseGuards(AccountAuthGuard)
+  @ResponseMessage('Lấy tổng doanh thu thành công')
+  async getOrderStatusDistribution(@Query() dto: GetStatsDto, @Acccount() account: IAccount) {
+    return this.orderFoodComboService.getOrderStatusDistribution(dto, account);
+  }
 }

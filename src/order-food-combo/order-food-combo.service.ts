@@ -1318,4 +1318,39 @@ export class OrderFoodComboService implements OnModuleInit {
       }[order.od_cb_status]
     })) // Format: [{ id: 'uuid', customer: 'Nguyễn Văn A', total: 300000, status: 'Hoàn thành' }, ...]
   }
+
+  // API 5: Order Status Distribution
+  async getOrderStatusDistribution(dto: GetStatsDto, account: IAccount) {
+    const statuses = await this.orderFoodComboRepository
+      .createQueryBuilder('order')
+      .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+      .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
+        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+        end: dto.endDate ? new Date(dto.endDate) : new Date()
+      })
+      .groupBy('order.od_cb_status')
+      .select(['order.od_cb_status AS status', 'COUNT(*) AS count'])
+      .getRawMany()
+
+    const data = statuses.map((s) => ({
+      type:
+        {
+          waiting_confirm_customer: 'Chờ xác nhận khách hàng',
+          over_time_customer: 'Quá hạn xác nhận',
+          waiting_confirm_restaurant: 'Chờ nhà hàng xác nhận',
+          waiting_shipping: 'Chờ giao hàng',
+          shipping: 'Đang giao hàng',
+          delivered_customer: 'Đã giao hàng',
+          customer_unreachable: 'Khách hàng không liên lạc được',
+          received_customer: 'Hoàn thành',
+          cancel_customer: 'Khách hủy',
+          cancel_restaurant: 'Nhà hàng hủy',
+          complaint: 'Khiếu nại',
+          complaint_done: 'Khiếu nại xong'
+        }[s.STATUS] || s.STATUS,
+      value: parseInt(s.COUNT)
+    }))
+
+    return data
+  }
 }
