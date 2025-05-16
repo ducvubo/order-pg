@@ -4,9 +4,15 @@ import {
   Column,
   PrimaryGeneratedColumn,
   OneToMany,
+  EventSubscriber,
+  EntitySubscriberInterface,
+  InsertEvent,
+  UpdateEvent,
 } from 'typeorm'
 import { v4 as uuidv4 } from 'uuid'
 import { OrderFoodComboItemEntity } from './order-food-combo-item.entity'
+import { FOOD_COMBO_SNAP_ELASTICSEARCH_INDEX } from 'src/constants/index.elasticsearch'
+import { addDocToElasticsearch, updateDocByElasticsearch } from 'src/utils/elasticsearch'
 
 @Entity('food_combo_snap')
 export class FoodComboSnapEntity extends SampleEntity {
@@ -45,4 +51,19 @@ export class FoodComboSnapEntity extends SampleEntity {
 
   @OneToMany(() => OrderFoodComboItemEntity, (orderItem) => orderItem.foodComboSnap)
   orderItems?: OrderFoodComboItemEntity[]
+}
+
+@EventSubscriber()
+export class FoodComboSnapSubscriber implements EntitySubscriberInterface<FoodComboSnapEntity> {
+  listenTo() {
+    return FoodComboSnapEntity
+  }
+
+  async afterInsert(event: InsertEvent<FoodComboSnapEntity>): Promise<void> {
+    await addDocToElasticsearch(FOOD_COMBO_SNAP_ELASTICSEARCH_INDEX, event.entity.fcb_snp_id, event.entity)
+  }
+
+  async afterUpdate(event: UpdateEvent<FoodComboSnapEntity>): Promise<void> {
+    await updateDocByElasticsearch(FOOD_COMBO_SNAP_ELASTICSEARCH_INDEX, event.entity.fcb_snp_id, event.entity)
+  }
 }

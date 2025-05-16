@@ -52,3 +52,9 @@ export const INFOR_USER_ELASTICSEARCH_INDEX = 'infor-user'
 
 export const ORDER_FOOD_ELASTICSEARCH_INDEX = 'order-food'
 export const ORDER_FOOD_ITEM_ELASTICSEARCH_INDEX = 'order-food-item'
+export const FOOD_SNAP_ELASTICSEARCH_INDEX = 'food-snap'
+
+export const ORDER_FOOD_COMBO_ELASTICSEARCH_INDEX = 'order-food-combo'
+export const ORDER_FOOD_COMBO_ITEM_ELASTICSEARCH_INDEX = 'order-food-combo-item'
+export const FOOD_COMBO_SNAP_ELASTICSEARCH_INDEX = 'food-combo-snap'
+

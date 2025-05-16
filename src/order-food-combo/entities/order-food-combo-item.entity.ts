@@ -1,4 +1,4 @@
-import { ORDER_FOOD_ELASTICSEARCH_INDEX } from 'src/constants/index.elasticsearch'
+import { ORDER_FOOD_COMBO_ITEM_ELASTICSEARCH_INDEX, ORDER_FOOD_ELASTICSEARCH_INDEX } from 'src/constants/index.elasticsearch'
 import { addDocToElasticsearch, updateDocByElasticsearch } from 'src/utils/elasticsearch'
 import { SampleEntity } from 'src/utils/sample.entity'
 import {
@@ -43,3 +43,17 @@ export class OrderFoodComboItemEntity extends SampleEntity {
   orderCombo?: OrderFoodComboEntity
 }
 
+@EventSubscriber()
+export class OrderFoodComboItemSubscriber implements EntitySubscriberInterface<OrderFoodComboItemEntity> {
+  listenTo() {
+    return OrderFoodComboItemEntity
+  }
+
+  async afterInsert(event: InsertEvent<OrderFoodComboItemEntity>): Promise<void> {
+    await addDocToElasticsearch(ORDER_FOOD_COMBO_ITEM_ELASTICSEARCH_INDEX, event.entity.od_cb_it_id, event.entity)
+  }
+
+  async afterUpdate(event: UpdateEvent<OrderFoodComboItemEntity>): Promise<void> {
+    await updateDocByElasticsearch(ORDER_FOOD_COMBO_ITEM_ELASTICSEARCH_INDEX, event.entity.od_cb_it_id, event.entity)
+  }
+}

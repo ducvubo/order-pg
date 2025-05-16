@@ -4,10 +4,16 @@ import {
   Column,
   PrimaryGeneratedColumn,
   OneToMany,
+  EventSubscriber,
+  InsertEvent,
+  EntitySubscriberInterface,
+  UpdateEvent,
 
 } from 'typeorm'
 import { v4 as uuidv4 } from 'uuid'
 import { OrderFoodItemEntity } from './order-food-item.entity'
+import { ORDER_FOOD_ELASTICSEARCH_INDEX } from 'src/constants/index.elasticsearch'
+import { addDocToElasticsearch, updateDocByElasticsearch } from 'src/utils/elasticsearch'
 
 @Entity('order_food')
 export class OrderFoodEntity extends SampleEntity {
@@ -96,4 +102,19 @@ export class OrderFoodEntity extends SampleEntity {
 
   @OneToMany(() => OrderFoodItemEntity, (orderItem) => orderItem.order, { cascade: true })
   orderItems?: OrderFoodItemEntity[];
+}
+
+@EventSubscriber()
+export class OrderFoodSubscriber implements EntitySubscriberInterface<OrderFoodEntity> {
+  listenTo() {
+    return OrderFoodEntity
+  }
+
+  async afterInsert(event: InsertEvent<OrderFoodEntity>): Promise<void> {
+    await addDocToElasticsearch(ORDER_FOOD_ELASTICSEARCH_INDEX, event.entity.od_id, event.entity)
+  }
+
+  async afterUpdate(event: UpdateEvent<OrderFoodEntity>): Promise<void> {
+    await updateDocByElasticsearch(ORDER_FOOD_ELASTICSEARCH_INDEX, event.entity.od_id, event.entity)
+  }
 }

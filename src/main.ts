@@ -11,6 +11,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { initElasticsearch } from './config/elasticsearch.config'
 import { sendMessageToKafka } from './utils/kafka'
 import { initMinio } from './config/minio.config'
+import { CacheInterceptor } from './interceptor/cache.interceptor'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
@@ -32,6 +33,7 @@ async function bootstrap() {
   // app.useGlobalInterceptors(new TimeoutInterceptor())
   app.useGlobalInterceptors(new TransformIntercaptor(reflector))
   app.useGlobalInterceptors(new IdUserGuestInterceptor(reflector))
+  app.useGlobalInterceptors(new CacheInterceptor())
 
   app.useStaticAssets(join(__dirname, '..', 'public'))
   app.setBaseViewsDir(join(__dirname, '..', 'views'))
