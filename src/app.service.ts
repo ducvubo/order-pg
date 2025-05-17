@@ -45,28 +45,32 @@ export class AppService implements OnModuleInit {
 
   async generateImage(prompt: string): Promise<any> {
     try {
-      // 1. Gọi API Stability để tạo ảnh
-      const formData = new FormData();
-      formData.append('prompt', prompt);
-      formData.append('output_format', 'png');
+      const payload = {
+        prompt,
+        output_format: 'png', // hoặc 'webp' tuỳ bạn
+      };
 
-      const stabilityApiKey = "sk-1HVb7GAoer7Xchg4DyrOl2dK5LJP60XKEX88cJUqKFLBPRiO"
-      const response = await axios.post(
-        'https://api.stability.ai/v2beta/stable-image/generate/core',
-        formData,
+      // Gọi API Stability AI
+      const response = await axios.postForm(
+        'https://api.stability.ai/v2beta/stable-image/generate/ultra',
+        axios.toFormData(payload, new FormData()),
         {
           headers: {
-            ...formData.getHeaders(),
-            Authorization: `Bearer ${stabilityApiKey}`,
+            Authorization: `Bearer sk-uUPGFe9MEdmsnwY5rnb91R2jJgUgmXvRWKuaciXNGc3asy36`, // hoặc gán trực tiếp key
             Accept: 'image/*',
           },
           responseType: 'arraybuffer',
-        }
+          validateStatus: undefined,
+        },
       );
+
+      if (response.status !== 200) {
+        throw new Error(`Stability API error ${response.status}: ${response.data.toString()}`);
+      }
 
       const buffer = Buffer.from(response.data);
 
-      // 2. Upload ảnh lên MinIO
+      // Upload ảnh lên MinIO
       const bucketName = 'ai-images';
       const fileExtension = 'png';
       const fileName = `${Date.now()}-${uuidv4()}.${fileExtension}`;
@@ -85,9 +89,10 @@ export class AppService implements OnModuleInit {
         image_custom: `/api/view-image?bucket=${bucketName}&file=${fileName}`,
         image_cloud: `/api/view-image?bucket=${bucketName}&file=${fileName}`,
       };
-    } catch (error) {
-      console.error('generateImage error:', error?.response?.data || error.message);
-      throw new BadRequestException('Failed to generate or upload image');
+    } catch (error: any) {
+      console.error('generateImage error:', error.response?.data || error.message);
+      throw new BadRequestException(`Failed to generate or upload image: ${error.message}`);
     }
   }
+
 }
