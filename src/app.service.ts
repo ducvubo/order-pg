@@ -45,32 +45,48 @@ export class AppService implements OnModuleInit {
 
   async generateImage(prompt: string): Promise<any> {
     try {
+      // Prepare payload for Gemini API
       const payload = {
-        prompt,
-        output_format: 'png', // hoặc 'webp' tuỳ bạn
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          responseModalities: ['TEXT', 'IMAGE']
+        }
       };
 
-      // Gọi API Stability AI
-      const response = await axios.postForm(
-        'https://api.stability.ai/v2beta/stable-image/generate/ultra',
-        axios.toFormData(payload, new FormData()),
+      // Call Gemini API
+      const response = await axios.post(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=AIzaSyD4kCbJjXzwLhvrwp8COiOkqUrdpA5yH6o',
+        payload,
         {
           headers: {
-            Authorization: `Bearer sk-uUPGFe9MEdmsnwY5rnb91R2jJgUgmXvRWKuaciXNGc3asy36`, // hoặc gán trực tiếp key
-            Accept: 'image/*',
+            'Content-Type': 'application/json'
           },
-          responseType: 'arraybuffer',
-          validateStatus: undefined,
-        },
+          responseType: 'json',
+          validateStatus: undefined
+        }
       );
 
       if (response.status !== 200) {
-        throw new Error(`Stability API error ${response.status}: ${response.data.toString()}`);
+        throw new Error(`Gemini API error ${response.status}: ${JSON.stringify(response.data)}`);
       }
 
-      const buffer = Buffer.from(response.data);
+      // Extract image data from response
+      const imageData = response.data.candidates[0].content.parts.find(
+        (part: any) => part.inlineData?.mimeType === 'image/png'
+      )?.inlineData?.data;
 
-      // Upload ảnh lên MinIO
+      if (!imageData) {
+        throw new Error('No image data found in Gemini API response');
+      }
+
+      // Convert base64 to buffer
+      const buffer = Buffer.from(imageData, 'base64');
+
+      // Upload to MinIO
       const bucketName = 'ai-images';
       const fileExtension = 'png';
       const fileName = `${Date.now()}-${uuidv4()}.${fileExtension}`;
@@ -82,12 +98,12 @@ export class AppService implements OnModuleInit {
       }
 
       await this.minio.putObject(bucketName, fileName, buffer, buffer.length, {
-        'Content-Type': contentType,
+        'Content-Type': contentType
       });
 
       return {
         image_custom: `/api/view-image?bucket=${bucketName}&file=${fileName}`,
-        image_cloud: `/api/view-image?bucket=${bucketName}&file=${fileName}`,
+        image_cloud: `/api/view-image?bucket=${bucketName}&file=${fileName}`
       };
     } catch (error: any) {
       console.error('generateImage error:', error.response?.data || error.message);
