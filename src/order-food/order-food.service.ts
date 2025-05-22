@@ -1375,6 +1375,7 @@ export class OrderFoodService implements OnModuleInit {
         waiting_confirm_customer: 'Chờ xác nhận khách hàng',
         over_time_customer: 'Quá hạn xác nhận',
         waiting_confirm_restaurant: 'Chờ nhà hàng xác nhận',
+        customer_unreachable: 'Khách không liên lạc được',
         waiting_shipping: 'Chờ giao hàng',
         shipping: 'Đang giao hàng',
         delivered_customer: 'Đã giao hàng',
