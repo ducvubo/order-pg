@@ -194,7 +194,7 @@ export class ComboFoodResService implements OnModuleInit {
       await Promise.all(savePromises)
 
       // Cập nhật thông tin combo
-      const slug = slugify(fcb_name, { lower: true, strict: true })
+      // const slug = slugify(fcb_name, { lower: true, strict: true })
       const update = await queryRunner.manager
         .createQueryBuilder()
         .update(FoodComboResEntity)
@@ -202,7 +202,7 @@ export class ComboFoodResService implements OnModuleInit {
           fcb_id,
           fcb_description,
           fcb_image,
-          fcb_slug: slug,
+          // fcb_slug: slug,
           fcb_name,
           fcb_note,
           fcb_price,
