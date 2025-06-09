@@ -16,10 +16,11 @@ import { ResultPagination } from 'src/interface/resultPagination.interface'
 import { UpdateStatusFoodComboResDto } from './dto/update-status-food-combo-res.dto'
 import { UpdateStateFoodComboResDto } from './dto/update-state-food-combo-res.dto'
 import { FoodRestaurantQuery } from 'src/food-restaurant/entities/food-restaurant.query'
-import { getCacheIO, setCacheIO } from 'src/utils/cache'
+import { deleteCacheIO, getCacheIO, setCacheIO } from 'src/utils/cache'
 import kafkaInstance from '../config/kafka.config'
 import { sendMessageToKafka } from 'src/utils/kafka'
 import { generateSlug } from 'src/utils'
+import { KEY_HOME_PAGE_LIST_FOOD_COMBO } from 'src/constants/key.redis'
 
 @Injectable()
 export class ComboFoodResService implements OnModuleInit {
@@ -129,6 +130,7 @@ export class ComboFoodResService implements OnModuleInit {
       })
 
       await queryRunner.commitTransaction()
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
       return combo
     } catch (error) {
       await queryRunner.rollbackTransaction()
@@ -229,6 +231,7 @@ export class ComboFoodResService implements OnModuleInit {
         })
       })
 
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
       return update
     } catch (error) {
       await queryRunner.rollbackTransaction()
@@ -371,6 +374,7 @@ export class ComboFoodResService implements OnModuleInit {
           sendObject: 'all_account'
         })
       })
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
       return deleted
 
     } catch (error) {
@@ -406,6 +410,7 @@ export class ComboFoodResService implements OnModuleInit {
           sendObject: 'all_account'
         })
       })
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
       return restore
     } catch (error) {
       saveLogSystem({
@@ -446,6 +451,7 @@ export class ComboFoodResService implements OnModuleInit {
           sendObject: 'all_account'
         })
       })
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
       return update
     } catch (error) {
       saveLogSystem({
@@ -485,6 +491,7 @@ export class ComboFoodResService implements OnModuleInit {
           sendObject: 'all_account'
         })
       })
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
       return update
     } catch (error) {
       saveLogSystem({
@@ -538,7 +545,15 @@ export class ComboFoodResService implements OnModuleInit {
 
   async findComboFoodRestaurants(combo_food_res_id: string): Promise<FoodComboResEntity[]> {
     try {
-      return await this.foodComboResQuery.findComboFoodRestaurants(combo_food_res_id)
+      const listComboFood = await getCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${combo_food_res_id}`)
+      if (listComboFood) {
+        console.log('Data from cache');
+        return listComboFood
+      }
+      const data = await this.foodComboResQuery.findComboFoodRestaurants(combo_food_res_id)
+      await setCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${combo_food_res_id}`, data)
+      console.log('Data from database');
+      return data
     } catch (error) {
       saveLogSystem({
         action: 'findComboFoodRestaurants',

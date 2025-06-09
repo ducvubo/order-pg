@@ -12,6 +12,8 @@ import { UpdateSpecialOfferDto } from './dto/update-special-offer.dto'
 import { UpdateResult } from 'typeorm'
 import { UpdateStatusSpecialOfferDto } from './dto/update-status-special-offer.dto'
 import { sendMessageToKafka } from 'src/utils/kafka'
+import { deleteCacheIO, getCacheIO, setCacheIO } from 'src/utils/cache'
+import { KEY_HONE_PAGE_LIST_SPECIAL_OFFERS } from 'src/constants/key.redis'
 
 @Injectable()
 export class SpecialOffersService {
@@ -44,6 +46,8 @@ export class SpecialOffersService {
           sendObject: 'all_account'
         })
       })
+
+      await deleteCacheIO(`${KEY_HONE_PAGE_LIST_SPECIAL_OFFERS}_${account.account_restaurant_id}`)
 
       return special
     } catch (error) {
@@ -102,6 +106,7 @@ export class SpecialOffersService {
           sendObject: 'all_account'
         })
       })
+      await deleteCacheIO(`${KEY_HONE_PAGE_LIST_SPECIAL_OFFERS}_${account.account_restaurant_id}`)
       return update
 
     } catch (error) {
@@ -137,6 +142,7 @@ export class SpecialOffersService {
           sendObject: 'all_account'
         })
       })
+      await deleteCacheIO(`${KEY_HONE_PAGE_LIST_SPECIAL_OFFERS}_${account.account_restaurant_id}`)
       return deleted
     } catch (error) {
       saveLogSystem({
@@ -170,7 +176,7 @@ export class SpecialOffersService {
           sendObject: 'all_account'
         })
       })
-
+      await deleteCacheIO(`${KEY_HONE_PAGE_LIST_SPECIAL_OFFERS}_${account.account_restaurant_id}`)
       return restore
     } catch (error) {
       saveLogSystem({
@@ -213,6 +219,7 @@ export class SpecialOffersService {
           sendObject: 'all_account'
         })
       })
+      await deleteCacheIO(`${KEY_HONE_PAGE_LIST_SPECIAL_OFFERS}_${account.account_restaurant_id}`)
       return update
 
     } catch (error) {
@@ -301,7 +308,15 @@ export class SpecialOffersService {
 
   async findSpecialOffers(spo_res_id: string): Promise<SpecialOfferEntity[]> {
     try {
-      return await this.specialOfferQuery.findSpecialOffers(spo_res_id)
+      const listSpecialOffer = await getCacheIO(`${KEY_HONE_PAGE_LIST_SPECIAL_OFFERS}_${spo_res_id}`)
+      if (listSpecialOffer) {
+        console.log('Data from cache');
+        return listSpecialOffer
+      }
+      const data = await this.specialOfferQuery.findSpecialOffers(spo_res_id)
+      await setCacheIO(`${KEY_HONE_PAGE_LIST_SPECIAL_OFFERS}_${spo_res_id}`, data)
+      console.log('Data from database');
+      return data
     } catch (error) {
       saveLogSystem({
         action: 'findSpecialOffers',

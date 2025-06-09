@@ -158,22 +158,6 @@ export class FoodComboItemsQuery {
                         },
                       },
                     },
-                    {
-                      match: {
-                        food_status: {
-                          query: "enable",
-                          operator: "and",
-                        },
-                      },
-                    },
-                    {
-                      match: {
-                        isDeleted: {
-                          query: 0,
-                          operator: "and",
-                        },
-                      },
-                    },
                   ],
                 },
               },

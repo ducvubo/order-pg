@@ -22,12 +22,13 @@ import { FoodRestaurantQuery } from './entities/food-restaurant.query'
 import { FoodOptionsRepo } from 'src/food-options/entities/food-options.repo'
 import { FoodOptionsQuery } from 'src/food-options/entities/food-options.query'
 import { FoodOptionsEntity } from 'src/food-options/entities/food-options.entity'
-import { getCacheIO, setCacheIO } from 'src/utils/cache'
+import { deleteCacheIO, getCacheIO, setCacheIO } from 'src/utils/cache'
 import kafkaInstance from '../config/kafka.config'
 import { callGeminiAPI } from 'src/utils/gemini.api'
 import { createWorker } from 'tesseract.js'
 import { sendMessageToKafka } from 'src/utils/kafka'
 import { generateSlug } from 'src/utils'
+import { KEY_HOME_PAGE_LIST_FOOD } from 'src/constants/key.redis'
 
 @Injectable()
 export class FoodRestaurantService implements OnModuleInit {
@@ -129,6 +130,9 @@ export class FoodRestaurantService implements OnModuleInit {
           sendObject: 'all_account'
         })
       })
+
+      // xóa cache
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
 
       return newFood
     } catch (error) {
@@ -367,6 +371,9 @@ export class FoodRestaurantService implements OnModuleInit {
         })
       })
 
+      // xóa cache
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
+
       return updated
     } catch (error) {
       await queryRunner.rollbackTransaction()
@@ -416,6 +423,9 @@ export class FoodRestaurantService implements OnModuleInit {
         })
       })
 
+      // xóa cache
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
+
       return update
 
     } catch (error) {
@@ -444,12 +454,17 @@ export class FoodRestaurantService implements OnModuleInit {
         throw new BadRequestError('Món ăn không tồn tại')
       }
 
-      return await this.foodRestaurantRepo.updateState({
+      const update = await this.foodRestaurantRepo.updateState({
         food_id: food_id,
         food_res_id: account.account_restaurant_id,
         food_state: food_state,
         updatedBy: account.account_employee_id ? account.account_employee_id : account.account_restaurant_id
       })
+
+      // xóa cache
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
+
+      return update
     } catch (error) {
       saveLogSystem({
         action: 'updateState',
@@ -488,6 +503,10 @@ export class FoodRestaurantService implements OnModuleInit {
           sendObject: 'all_account'
         })
       })
+
+      // xóa cache
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
+
       return deleted
     } catch (error) {
       saveLogSystem({
@@ -529,6 +548,9 @@ export class FoodRestaurantService implements OnModuleInit {
         })
       })
 
+      // xóa cache
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
+
       return restore
 
     } catch (error) {
@@ -565,7 +587,14 @@ export class FoodRestaurantService implements OnModuleInit {
 
   async findFoodRestaurants(food_res_id: string): Promise<FoodRestaurantEntity[]> {
     try {
+      const listFood = await getCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${food_res_id}`)
+      if (listFood) {
+        console.log('Data from cache');
+        return listFood
+      }
       const data = await this.foodRestaurantQuery.findFoodRestaurants(food_res_id)
+      await setCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${food_res_id}`, data)
+      console.log('Data from database');
       return data
     } catch (error) {
       saveLogSystem({

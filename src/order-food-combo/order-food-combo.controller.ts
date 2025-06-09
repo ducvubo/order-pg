@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, Query, Request, UseGuards, } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Request, UseGuards, } from '@nestjs/common';
 import { OrderFoodComboService } from './order-food-combo.service';
 import { Acccount, ResponseMessage } from 'src/decorator/customize';
 import { CreateOrderFoodComboDto } from './dto/create-order-food-combo.dto';
@@ -147,6 +147,25 @@ export class OrderFoodComboController {
     result: OrderFoodComboEntity[]
   }> {
     return await this.orderFoodComboService.getListOrderFoodComboGuestPagination({ pageSize: +pageSize, pageIndex: +pageIndex, keyword, od_cb_status, toDate, fromDate, id_user_guest: req.headers['x-cl-id'] as string });
+  }
+
+  @Get('/get-list-feedback-order-food-combo/:restaurant_id')
+  @ResponseMessage('Lấy danh sách đánh giá thành công')
+  async getListFeedbackOrderFoodCombo(
+    @Query('pageIndex') pageIndex: string,
+    @Query('pageSize') pageSize: string,
+    @Query('star') star: string,
+    @Param('restaurant_id') restaurant_id: string
+  ): Promise<{
+    meta: {
+      pageIndex: number
+      pageSize: number
+      totalPage: number
+      totalItem: number
+    }
+    result: OrderFoodComboEntity[]
+  }> {
+    return await this.orderFoodComboService.getListFeedbackOrderFoodCombo({ pageIndex: +pageIndex, pageSize: +pageSize, star, restaurant_id });
   }
 
   @Get('total-revenue')

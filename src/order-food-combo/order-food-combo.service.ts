@@ -1035,7 +1035,7 @@ export class OrderFoodComboService implements OnModuleInit {
       const [orderFoodCombo, total] = await this.orderFoodComboRepository.findAndCount({
         where,
         order: {
-          od_cb_created_at: 'DESC'
+          updatedAt: 'DESC'
         },
         skip: (pageIndex - 1) * pageSize,
         take: pageSize,
@@ -1182,6 +1182,79 @@ export class OrderFoodComboService implements OnModuleInit {
         error: error,
         class: 'OrderFoodService',
         function: 'getListOrderFoodComboGuestPagination',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  async getListFeedbackOrderFoodCombo({
+    pageIndex,
+    pageSize,
+    star,
+    restaurant_id
+  }: {
+    pageIndex: number
+    pageSize: number
+    star: string
+    restaurant_id: string
+  }): Promise<{
+    meta: {
+      pageIndex: number
+      pageSize: number
+      totalPage: number
+      totalItem: number
+    }
+    result: OrderFoodComboEntity[]
+  }> {
+    try {
+      const query: any = {
+        od_cb_res_id: restaurant_id,
+        od_cb_feed_view: 'active',
+      }
+
+      if (star && star !== '0') {
+        query.od_cb_feed_star = Number(star)
+      }
+
+      const [orderFoodCombo, total] = await this.orderFoodComboRepository.findAndCount({
+        where: query,
+        order: {
+          updatedAt: 'DESC' //giảm dần theo ngày
+        },
+        skip: (pageIndex - 1) * pageSize,
+        take: pageSize,
+        select: ['od_cb_feed_star', 'od_cb_feed_content', 'od_cb_feed_reply']
+      })
+
+      const totalPage = Math.ceil(total / pageSize)
+      const result: {
+        meta: {
+          pageIndex: number
+          pageSize: number
+          totalItem: number
+          totalPage: number
+        }
+        result: OrderFoodComboEntity[]
+      } = {
+        meta: {
+          pageIndex: pageIndex,
+          pageSize,
+          totalItem: total,
+          totalPage
+        },
+        result: orderFoodCombo
+      }
+
+      return result
+    } catch (error) {
+      saveLogSystem({
+        action: 'getListFeedbackOrderFoodCombo',
+        error: error,
+        class: 'OrderFoodComboService',
+        function: 'getListFeedbackOrderFoodCombo',
         message: error.message,
         time: new Date(),
         type: 'error'

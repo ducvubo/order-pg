@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, Query, Request, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Request, Res, UseGuards } from '@nestjs/common';
 import { OrderFoodService } from './order-food.service';
 import { Acccount, ResponseMessage } from 'src/decorator/customize';
 import { CreateOrderFoodDto } from './dto/create-order-food.dto';
@@ -134,15 +134,7 @@ export class OrderFoodController {
     @Query('toDate') toDate: string,
     @Query('fromDate') fromDate: string,
     @Request() req: RequestExpress
-  ): Promise<{
-    meta: {
-      pageIndex: number;
-      pageSize: number;
-      totalItem: number;
-      totalPage: number;
-    };
-    result: OrderFoodEntity[]
-  }> {
+  ): Promise<ResultPagination<OrderFoodEntity>> {
     return await this.orderFoodService.getListOrderFoodGuestPagination({ pageSize: +pageSize, pageIndex: +pageIndex, keyword, od_status, toDate, fromDate, id_user_guest: req.headers['x-cl-id'] as string });
   }
 
@@ -164,6 +156,25 @@ export class OrderFoodController {
     @Acccount() account: IAccount
   ): Promise<OrderFoodEntity> {
     return await this.orderFoodService.getOrderFoodById(od_id, account);
+  }
+
+  @Get('/get-list-feedback-order-food/:restaurant_id')
+  @ResponseMessage('Lấy danh sách đánh giá thành công')
+  async getListFeedbackOrderFood(
+    @Query('pageIndex') pageIndex: string,
+    @Query('pageSize') pageSize: string,
+    @Query('star') star: string,
+    @Param('restaurant_id') restaurant_id: string
+  ): Promise<{
+    meta: {
+      pageIndex: number
+      pageSize: number
+      totalPage: number
+      totalItem: number
+    }
+    result: OrderFoodEntity[]
+  }> {
+    return await this.orderFoodService.getListFeedbackOrderFood({ pageIndex: +pageIndex, pageSize: +pageSize, star, restaurant_id });
   }
 
   @Get('total-revenue')

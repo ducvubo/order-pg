@@ -1108,15 +1108,7 @@ export class OrderFoodService implements OnModuleInit {
     | 'all'
     toDate: string
     fromDate: string
-  }): Promise<{
-    meta: {
-      pageIndex: number
-      pageSize: number
-      totalItem: number
-      totalPage: number
-    }
-    result: OrderFoodEntity[]
-  }> {
+  }): Promise<ResultPagination<OrderFoodEntity>> {
     try {
       const commonConditions: any = {
         id_user_guest
@@ -1168,17 +1160,9 @@ export class OrderFoodService implements OnModuleInit {
 
 
       const totalPage = Math.ceil(total / pageSize)
-      const result: {
+      const result: ResultPagination<OrderFoodEntity> = {
         meta: {
-          pageIndex: number
-          pageSize: number
-          totalItem: number
-          totalPage: number
-        }
-        result: OrderFoodEntity[]
-      } = {
-        meta: {
-          pageIndex: pageIndex,
+          current: pageIndex,
           pageSize,
           totalItem: total,
           totalPage
@@ -1258,6 +1242,83 @@ export class OrderFoodService implements OnModuleInit {
     }
   }
 
+  async getListFeedbackOrderFood({
+    pageIndex,
+    pageSize,
+    star,
+    restaurant_id
+  }: {
+    pageIndex: number
+    pageSize: number
+    star: string
+    restaurant_id: string
+  }): Promise<{
+    meta: {
+      pageIndex: number
+      pageSize: number
+      totalPage: number
+      totalItem: number
+    }
+    result: OrderFoodEntity[]
+  }> {
+    try {
+      //nếu star là không thì lấy tất cả
+      //chỉ lấy cái nào có đánh giá rồi
+      // chỉ lấy ra od_feed_star, od_feed_content, od_feed_reply
+      const query: any = {
+        od_res_id: restaurant_id,
+        od_feed_view: 'active',
+      }
+
+      // Nếu star khác '0' thì mới lọc theo số sao
+      if (star && star !== '0') {
+        query.od_feed_star = Number(star)
+      }
+
+      const [orderFood, total] = await this.orderFoodRepository.findAndCount({
+        where: query,
+        order: {
+          od_created_at: 'DESC'
+        },
+        skip: (pageIndex - 1) * pageSize,
+        take: pageSize,
+
+        select: ['od_feed_star', 'od_feed_content', 'od_feed_reply']
+      })
+
+      const totalPage = Math.ceil(total / pageSize)
+      const result: {
+        meta: {
+          pageIndex: number
+          pageSize: number
+          totalItem: number
+          totalPage: number
+        }
+        result: OrderFoodEntity[]
+      } = {
+        meta: {
+          pageIndex: pageIndex,
+          pageSize,
+          totalItem: total,
+          totalPage
+        },
+        result: orderFood
+      }
+
+      return result
+    } catch (error) {
+      saveLogSystem({
+        action: 'getListFeedbackOrderFood',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'getListFeedbackOrderFood',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
   private buildDateFilter(dto: GetStatsDto) {
     const { startDate, endDate } = dto
     if (!startDate && !endDate) return undefined
