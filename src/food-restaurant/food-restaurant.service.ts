@@ -424,7 +424,7 @@ export class FoodRestaurantService implements OnModuleInit {
       })
 
       // xóa cache
-      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
+      const deleteCache = await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
 
       return update
 
