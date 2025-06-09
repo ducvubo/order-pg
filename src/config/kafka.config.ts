@@ -1,4 +1,4 @@
-import { Kafka, Producer, Consumer, Partitioners } from "kafkajs";
+import { Kafka, Producer, Consumer, Partitioners, logLevel } from "kafkajs";
 
 class KafkaSingleton {
   private static instance: KafkaSingleton;
@@ -19,6 +19,7 @@ class KafkaSingleton {
         initialRetryTime: 300,
         retries: 10,
       },
+      logLevel: logLevel.NOTHING
     });
 
     this.producer = this.kafka.producer({
