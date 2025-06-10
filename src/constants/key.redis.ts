@@ -13,3 +13,7 @@ export const SIGN_TOKEN = 'sign_token'
 export const KEY_HOME_PAGE_LIST_FOOD = 'home_page_list_food'
 export const KEY_HOME_PAGE_LIST_FOOD_COMBO = 'home_page_list_food_combo'
 export const KEY_HONE_PAGE_LIST_SPECIAL_OFFERS = 'home_page_list_special_offers'
+
+export const KEY_FOOD_RESTAURANT_BY_SLUG = 'food_restaurant_by_slug'
+export const KEY_COMBO_FOOD_RESTAURANT_BY_SLUG = 'combo_food_restaurant_by_slug'
+

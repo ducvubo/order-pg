@@ -20,7 +20,7 @@ import { deleteCacheIO, getCacheIO, setCacheIO } from 'src/utils/cache'
 import kafkaInstance from '../config/kafka.config'
 import { sendMessageToKafka } from 'src/utils/kafka'
 import { generateSlug } from 'src/utils'
-import { KEY_HOME_PAGE_LIST_FOOD_COMBO } from 'src/constants/key.redis'
+import { KEY_COMBO_FOOD_RESTAURANT_BY_SLUG, KEY_HOME_PAGE_LIST_FOOD_COMBO } from 'src/constants/key.redis'
 
 @Injectable()
 export class ComboFoodResService implements OnModuleInit {
@@ -131,6 +131,7 @@ export class ComboFoodResService implements OnModuleInit {
 
       await queryRunner.commitTransaction()
       await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
+      await deleteCacheIO(`${KEY_COMBO_FOOD_RESTAURANT_BY_SLUG}_${slug}`)
       return combo
     } catch (error) {
       await queryRunner.rollbackTransaction()
@@ -232,6 +233,7 @@ export class ComboFoodResService implements OnModuleInit {
       })
 
       await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
+      await deleteCacheIO(`${KEY_COMBO_FOOD_RESTAURANT_BY_SLUG}_${existingCombo.fcb_slug}`)
       return update
     } catch (error) {
       await queryRunner.rollbackTransaction()
@@ -375,6 +377,7 @@ export class ComboFoodResService implements OnModuleInit {
         })
       })
       await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
+      await deleteCacheIO(`${KEY_COMBO_FOOD_RESTAURANT_BY_SLUG}_${combo.fcb_slug}`)
       return deleted
 
     } catch (error) {
@@ -411,6 +414,7 @@ export class ComboFoodResService implements OnModuleInit {
         })
       })
       await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
+      await deleteCacheIO(`${KEY_COMBO_FOOD_RESTAURANT_BY_SLUG}_${combo.fcb_slug}`)
       return restore
     } catch (error) {
       saveLogSystem({
@@ -452,6 +456,7 @@ export class ComboFoodResService implements OnModuleInit {
         })
       })
       await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
+      await deleteCacheIO(`${KEY_COMBO_FOOD_RESTAURANT_BY_SLUG}_${combo.fcb_slug}`)
       return update
     } catch (error) {
       saveLogSystem({
@@ -492,6 +497,7 @@ export class ComboFoodResService implements OnModuleInit {
         })
       })
       await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD_COMBO}_${account.account_restaurant_id}`)
+      await deleteCacheIO(`${KEY_COMBO_FOOD_RESTAURANT_BY_SLUG}_${combo.fcb_slug}`)
       return update
     } catch (error) {
       saveLogSystem({
@@ -650,11 +656,16 @@ export class ComboFoodResService implements OnModuleInit {
 
   async getFoodComboBySlug(fcb_slug: string): Promise<FoodComboResEntity> {
     try {
+      const data = await getCacheIO(`${KEY_COMBO_FOOD_RESTAURANT_BY_SLUG}_${fcb_slug}`)
+      if (data) {
+        console.log('Data from cache');
+        return data as FoodComboResEntity
+      }
       const foodCombo = await this.foodComboResQuery.getFoodComboResBySlug(fcb_slug)
-
+      await setCacheIO(`${KEY_COMBO_FOOD_RESTAURANT_BY_SLUG}_${fcb_slug}`, foodCombo)
       foodCombo.fcbi_combo = await this.foodComboItemsQuery.getComboItemByIdComboIdWithUI(foodCombo.fcb_id)
-
-      return foodCombo
+      console.log('Data from database');
+      return foodCombo as FoodComboResEntity
     } catch (error) {
       saveLogSystem({
         action: 'getFoodComboBySlug',

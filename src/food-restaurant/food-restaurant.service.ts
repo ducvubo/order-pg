@@ -28,7 +28,7 @@ import { callGeminiAPI } from 'src/utils/gemini.api'
 import { createWorker } from 'tesseract.js'
 import { sendMessageToKafka } from 'src/utils/kafka'
 import { generateSlug } from 'src/utils'
-import { KEY_HOME_PAGE_LIST_FOOD } from 'src/constants/key.redis'
+import { KEY_FOOD_RESTAURANT_BY_SLUG, KEY_HOME_PAGE_LIST_FOOD } from 'src/constants/key.redis'
 
 @Injectable()
 export class FoodRestaurantService implements OnModuleInit {
@@ -373,6 +373,7 @@ export class FoodRestaurantService implements OnModuleInit {
 
       // xóa cache
       await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
+      await deleteCacheIO(`${KEY_FOOD_RESTAURANT_BY_SLUG}_${foodExits.food_slug}`)
 
       return updated
     } catch (error) {
@@ -424,8 +425,8 @@ export class FoodRestaurantService implements OnModuleInit {
       })
 
       // xóa cache
-      const deleteCache = await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
-
+      await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
+      await deleteCacheIO(`${KEY_FOOD_RESTAURANT_BY_SLUG}_${foodExits.food_slug}`)
       return update
 
     } catch (error) {
@@ -463,7 +464,7 @@ export class FoodRestaurantService implements OnModuleInit {
 
       // xóa cache
       await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
-
+      await deleteCacheIO(`${KEY_FOOD_RESTAURANT_BY_SLUG}_${foodExits.food_slug}`)
       return update
     } catch (error) {
       saveLogSystem({
@@ -506,7 +507,7 @@ export class FoodRestaurantService implements OnModuleInit {
 
       // xóa cache
       await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
-
+      await deleteCacheIO(`${KEY_FOOD_RESTAURANT_BY_SLUG}_${foodExits.food_slug}`)
       return deleted
     } catch (error) {
       saveLogSystem({
@@ -550,7 +551,7 @@ export class FoodRestaurantService implements OnModuleInit {
 
       // xóa cache
       await deleteCacheIO(`${KEY_HOME_PAGE_LIST_FOOD}_${account.account_restaurant_id}`)
-
+      await deleteCacheIO(`${KEY_FOOD_RESTAURANT_BY_SLUG}_${foodExits.food_slug}`)
       return restore
 
     } catch (error) {
@@ -683,9 +684,16 @@ export class FoodRestaurantService implements OnModuleInit {
 
   async getFoodRestaurantBySlug(slug: string): Promise<FoodRestaurantEntity> {
     try {
-      const data = await this.foodRestaurantQuery.getFoodRestaurantBySlug(slug)
-      data.fopt_food = await this.foodOptionQuery.findFoodOptionByIdFoodUI(data.food_id)
-      return data
+      const data = await getCacheIO(`${KEY_FOOD_RESTAURANT_BY_SLUG}_${slug}`)
+      if (data) {
+        console.log('Data from cache');
+        return data as FoodRestaurantEntity
+      }
+      const dataFood = await this.foodRestaurantQuery.getFoodRestaurantBySlug(slug)
+      await setCacheIO(`${KEY_FOOD_RESTAURANT_BY_SLUG}_${slug}`, dataFood)
+      dataFood.fopt_food = await this.foodOptionQuery.findFoodOptionByIdFoodUI(dataFood.food_id)
+      console.log('Data from database');
+      return dataFood as FoodRestaurantEntity
     } catch (error) {
       saveLogSystem({
         action: 'getFoodRestaurantBySlug',
