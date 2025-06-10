@@ -662,8 +662,8 @@ export class ComboFoodResService implements OnModuleInit {
         return data as FoodComboResEntity
       }
       const foodCombo = await this.foodComboResQuery.getFoodComboResBySlug(fcb_slug)
-      await setCacheIO(`${KEY_COMBO_FOOD_RESTAURANT_BY_SLUG}_${fcb_slug}`, foodCombo)
       foodCombo.fcbi_combo = await this.foodComboItemsQuery.getComboItemByIdComboIdWithUI(foodCombo.fcb_id)
+      await setCacheIO(`${KEY_COMBO_FOOD_RESTAURANT_BY_SLUG}_${fcb_slug}`, foodCombo)
       console.log('Data from database');
       return foodCombo as FoodComboResEntity
     } catch (error) {

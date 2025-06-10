@@ -690,8 +690,8 @@ export class FoodRestaurantService implements OnModuleInit {
         return data as FoodRestaurantEntity
       }
       const dataFood = await this.foodRestaurantQuery.getFoodRestaurantBySlug(slug)
-      await setCacheIO(`${KEY_FOOD_RESTAURANT_BY_SLUG}_${slug}`, dataFood)
       dataFood.fopt_food = await this.foodOptionQuery.findFoodOptionByIdFoodUI(dataFood.food_id)
+      await setCacheIO(`${KEY_FOOD_RESTAURANT_BY_SLUG}_${slug}`, dataFood)
       console.log('Data from database');
       return dataFood as FoodRestaurantEntity
     } catch (error) {
