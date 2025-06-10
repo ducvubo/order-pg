@@ -4,6 +4,7 @@ import { getRedis } from '../config/redis.config'
 
 const redisCache = getRedis().instanceConnect
 export const setCacheIO = async (key: string, value: any) => {
+  console.log('setCacheIO::::::', key)
   if (!redisCache) {
     throw new Error('Redis client not initialized')
   }
@@ -39,6 +40,7 @@ export const getCacheIO = async (key: string) => {
 }
 
 export const deleteCacheIO = async (key: string) => {
+  console.log('deleteCacheIO::::::', key)
   if (!redisCache) {
     throw new Error('Redis client not initialized')
   }
