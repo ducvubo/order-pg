@@ -45,7 +45,9 @@ export const deleteCacheIO = async (key: string) => {
     throw new Error('Redis client not initialized')
   }
   try {
-    return await redisCache.del(key)
+    const result = await redisCache.del(key)
+    console.log('deleteCacheIO::::::', result)
+    return result
   } catch (error) {
     throw new Error(error.message)
   }
