@@ -307,7 +307,7 @@ export class FoodRestaurantService implements OnModuleInit {
 
       const listOptionOld = await this.foodOptionQuery.findOptionByIdFood(food_id, account.account_restaurant_id)
 
-      if (food_options.length !== 0 && listOptionOld.length !== 0) {
+      if (listOptionOld.length !== 0) {
         await Promise.all(
           listOptionOld.map((option) =>
             queryRunner.manager.remove(FoodOptionsEntity, {
@@ -315,7 +315,9 @@ export class FoodRestaurantService implements OnModuleInit {
             })
           )
         )
+      }
 
+      if (food_options.length !== 0) {
         await Promise.all(
           food_options.map((option) =>
             queryRunner.manager.save(FoodOptionsEntity, {
