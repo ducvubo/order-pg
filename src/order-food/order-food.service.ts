@@ -1461,7 +1461,6 @@ export class OrderFoodService implements OnModuleInit {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
       })
-      .andWhere('order.od_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
       .groupBy('order.od_status')
       .select(['order.od_status AS status', 'COUNT(*) AS count'])
       .getRawMany()
