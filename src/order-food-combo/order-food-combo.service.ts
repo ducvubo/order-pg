@@ -1366,7 +1366,7 @@ export class OrderFoodComboService implements OnModuleInit {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
       })
-      .andWhere('order.od_cb_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
+      .andWhere('order.od_status IN (:...status)', { status: ['waiting_confirm_customer', 'over_time_customer'] })
       .orderBy('order.od_cb_created_at', 'DESC')
       .take(5)
       .getMany()
