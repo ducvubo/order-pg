@@ -1359,15 +1359,15 @@ export class OrderFoodComboService implements OnModuleInit {
   async getRecentComboOrders(dto: GetStatsDto, account: IAccount) {
     const orders = await this.orderFoodComboRepository
       .createQueryBuilder('order')
-      .innerJoinAndSelect('order.orderItems', 'items')
-      .innerJoinAndSelect('items.foodComboSnap', 'comboSnap')
+      // .innerJoinAndSelect('order.orderItems', 'items')
+      // .innerJoinAndSelect('items.foodComboSnap', 'comboSnap')
       .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
       .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
       })
       //loại trừ
-      .andWhere('order.od_status NOT IN (:...status)', { status: ['waiting_confirm_customer', 'over_time_customer'] })
+      .andWhere('order.od_cb_status NOT IN (:...status)', { status: ['waiting_confirm_customer', 'over_time_customer'] })
       .orderBy('order.od_cb_created_at', 'DESC')
       .take(5)
       .getMany()
