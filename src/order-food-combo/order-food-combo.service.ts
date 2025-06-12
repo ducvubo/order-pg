@@ -1276,11 +1276,11 @@ export class OrderFoodComboService implements OnModuleInit {
       .innerJoinAndSelect('order.orderItems', 'items')
       .innerJoinAndSelect('items.foodComboSnap', 'comboSnap')
       .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere('order.od_cb_type_shipping = :status', { status: 'GHTK' })
       .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
       })
+      .andWhere('order.od_cb_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
       .getMany()
 
     const totalRevenue = orders.reduce((sum, order) => {
@@ -1300,7 +1300,7 @@ export class OrderFoodComboService implements OnModuleInit {
       .innerJoinAndSelect('order.orderItems', 'items')
       .innerJoinAndSelect('items.foodComboSnap', 'comboSnap')
       .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere('order.od_cb_type_shipping = :status', { status: 'GHTK' })
+      .andWhere('order.od_cb_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
       .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
@@ -1333,7 +1333,7 @@ export class OrderFoodComboService implements OnModuleInit {
       .innerJoinAndSelect('item.orderCombo', 'order')
       .innerJoinAndSelect('item.foodComboSnap', 'comboSnap')
       .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere('order.od_cb_type_shipping = :status', { status: 'GHTK' })
+      .andWhere('order.od_cb_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
       .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
@@ -1366,6 +1366,7 @@ export class OrderFoodComboService implements OnModuleInit {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
       })
+      .andWhere('order.od_cb_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
       .orderBy('order.od_cb_created_at', 'DESC')
       .take(5)
       .getMany()
@@ -1401,6 +1402,7 @@ export class OrderFoodComboService implements OnModuleInit {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
       })
+      .andWhere('order.od_cb_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
       .groupBy('order.od_cb_status')
       .select(['order.od_cb_status AS status', 'COUNT(*) AS count'])
       .getRawMany()

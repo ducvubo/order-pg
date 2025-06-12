@@ -1355,11 +1355,11 @@ export class OrderFoodService implements OnModuleInit {
       .innerJoinAndSelect('order.orderItems', 'items')
       .innerJoinAndSelect('items.foodSnap', 'foodSnap')
       .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere('order.od_type_shipping = :status', { status: 'GHTK' })
       .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
       })
+      .andWhere('order.od_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
       .getMany()
 
     const trendsMap = new Map<string, number>()
@@ -1388,11 +1388,11 @@ export class OrderFoodService implements OnModuleInit {
       .innerJoin('item.order', 'order')
       .innerJoin('item.foodSnap', 'foodSnap')
       .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere('order.od_type_shipping = :status', { status: 'GHTK' })
       .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
       })
+      .andWhere('order.od_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
       .groupBy('foodSnap.fsnp_id, foodSnap.fsnp_name')
       .select([
         'foodSnap.fsnp_name AS name',
@@ -1422,6 +1422,7 @@ export class OrderFoodService implements OnModuleInit {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
       })
+      .andWhere('order.od_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
       .orderBy('order.od_created_at', 'DESC')
       .take(5)
       .getMany()
@@ -1460,6 +1461,7 @@ export class OrderFoodService implements OnModuleInit {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
       })
+      .andWhere('order.od_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
       .groupBy('order.od_status')
       .select(['order.od_status AS status', 'COUNT(*) AS count'])
       .getRawMany()
