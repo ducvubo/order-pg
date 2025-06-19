@@ -1287,7 +1287,7 @@ export class OrderFoodComboService implements OnModuleInit {
       const orderTotal = order.orderItems.reduce((itemSum, item) => {
         return itemSum + item.od_cb_it_quantity * item.foodComboSnap.fcb_snp_price
       }, 0)
-      return sum + orderTotal
+      return sum + orderTotal + order.od_cb_price_shipping
     }, 0)
 
     return { totalComboRevenue: totalRevenue }
@@ -1311,7 +1311,7 @@ export class OrderFoodComboService implements OnModuleInit {
     orders.forEach((order) => {
       const date = order.od_cb_created_at.toISOString().split('T')[0]
       const orderTotal = order.orderItems.reduce((sum, item) => {
-        return sum + item.od_cb_it_quantity * item.foodComboSnap.fcb_snp_price
+        return sum + item.od_cb_it_quantity * item.foodComboSnap.fcb_snp_price + order.od_cb_price_shipping
       }, 0)
       trendsMap.set(date, (trendsMap.get(date) || 0) + orderTotal)
     })
@@ -1376,7 +1376,7 @@ export class OrderFoodComboService implements OnModuleInit {
       id: order.od_cb_id,
       customer: order.od_cb_user_name || 'Khách vãng lai',
       total: order.orderItems.reduce((sum, item) => {
-        return sum + item.od_cb_it_quantity * item.foodComboSnap.fcb_snp_price
+        return sum + item.od_cb_it_quantity * item.foodComboSnap.fcb_snp_price + order.od_cb_price_shipping
       }, 0),
       status: {
         waiting_confirm_customer: 'Chờ xác nhận khách hàng',

@@ -1331,7 +1331,7 @@ export class OrderFoodService implements OnModuleInit {
       .innerJoinAndSelect('order.orderItems', 'items')
       .innerJoinAndSelect('items.foodSnap', 'foodSnap')
       .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere('order.od_status = :status', { status: 'received_customer' })
+      .andWhere('order.od_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
       .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
         start: dto.startDate ? new Date(dto.startDate) : new Date(0),
         end: dto.endDate ? new Date(dto.endDate) : new Date()
@@ -1342,7 +1342,7 @@ export class OrderFoodService implements OnModuleInit {
       const orderTotal = order.orderItems.reduce((itemSum, item) => {
         return itemSum + item.od_it_quantity * item.foodSnap.fsnp_price
       }, 0)
-      return sum + orderTotal
+      return sum + orderTotal + order.od_price_shipping
     }, 0)
 
     return { totalRevenue }
@@ -1366,7 +1366,7 @@ export class OrderFoodService implements OnModuleInit {
     orders.forEach((order) => {
       const date = order.od_created_at.toISOString().split('T')[0]
       const orderTotal = order.orderItems.reduce((sum, item) => {
-        return sum + item.od_it_quantity * item.foodSnap.fsnp_price
+        return sum + item.od_it_quantity * item.foodSnap.fsnp_price + order.od_price_shipping
       }, 0)
       trendsMap.set(date, (trendsMap.get(date) || 0) + orderTotal)
     })
@@ -1431,7 +1431,7 @@ export class OrderFoodService implements OnModuleInit {
       id: order.od_id,
       customer: order.od_user_name || 'Khách vãng lai',
       total: order.orderItems.reduce((sum, item) => {
-        return sum + item.od_it_quantity * item.foodSnap.fsnp_price
+        return sum + item.od_it_quantity * item.foodSnap.fsnp_price + order.od_price_shipping
       }, 0),
       status: {
         waiting_confirm_customer: 'Chờ xác nhận khách hàng',
