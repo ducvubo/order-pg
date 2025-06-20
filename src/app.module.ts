@@ -38,7 +38,7 @@ import { SyncModule } from './sync/sync.module';
     ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'oracle',
-      host: '160.187.229.179',
+      host: '160.191.243.189',
       port: 1521,
       username: 'OrderPG',
       password: 'Duc17052003*',
