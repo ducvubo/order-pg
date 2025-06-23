@@ -1384,7 +1384,6 @@ export class OrderFoodComboService implements OnModuleInit {
           'SUM(item.od_cb_it_quantity * comboSnap.fcb_snp_price) AS revenue',
         ])
         .orderBy('orders', 'DESC')
-        .limit(10)
         .getRawMany();
 
       const data = items.map((item) => ({

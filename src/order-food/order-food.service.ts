@@ -1439,7 +1439,6 @@ export class OrderFoodService implements OnModuleInit {
           'SUM(item.od_it_quantity * foodSnap.fsnp_price) AS revenue',
         ])
         .orderBy('orders', 'DESC')
-        .limit(10)
         .getRawMany();
 
       const data = items.map((item) => ({
