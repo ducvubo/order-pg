@@ -14,7 +14,7 @@ export class SpecialOfferRepo implements OnModuleInit {
     @InjectRepository(SpecialOfferEntity)
     private readonly SpecialOfferRepository: Repository<SpecialOfferEntity>,
     private readonly configService: ConfigService
-  ) {}
+  ) { }
 
   async onModuleInit() {
     const isSync = this.configService.get('SYNC_MONGODB_TO_ELASTICSEARCH')
@@ -169,4 +169,27 @@ export class SpecialOfferRepo implements OnModuleInit {
       throw new ServerErrorDefault(error)
     }
   }
+
+  async totalSpecialOffer(spo_res_id: string): Promise<number> {
+    try {
+      return await this.SpecialOfferRepository.count({
+        where: {
+          spo_res_id,
+          spo_status: 'enable'
+        }
+      })
+    } catch (error) {
+      saveLogSystem({
+        action: 'totalSpecialOffer',
+        class: 'SpecialOfferRepo',
+        function: 'totalSpecialOffer',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
 }

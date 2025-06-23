@@ -1271,161 +1271,242 @@ export class OrderFoodComboService implements OnModuleInit {
 
   // API 1: Total Combo Revenue
   async getTotalComboRevenue(dto: GetStatsDto, account: IAccount) {
-    const orders = await this.orderFoodComboRepository
-      .createQueryBuilder('order')
-      .innerJoinAndSelect('order.orderItems', 'items')
-      .innerJoinAndSelect('items.foodComboSnap', 'comboSnap')
-      .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
-        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
-        end: dto.endDate ? new Date(dto.endDate) : new Date()
-      })
-      .andWhere('order.od_cb_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
-      .getMany()
+    try {
+      const orders = await this.orderFoodComboRepository
+        .createQueryBuilder('order')
+        .innerJoinAndSelect('order.orderItems', 'items')
+        .innerJoinAndSelect('items.foodComboSnap', 'comboSnap')
+        .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+        .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
+          start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+          end: dto.endDate ? new Date(dto.endDate) : new Date()
+        })
+        .andWhere('order.od_cb_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
+        .getMany()
 
-    const totalRevenue = orders.reduce((sum, order) => {
-      const orderTotal = order.orderItems.reduce((itemSum, item) => {
-        return itemSum + item.od_cb_it_quantity * item.foodComboSnap.fcb_snp_price
+      const totalRevenue = orders.reduce((sum, order) => {
+        const orderTotal = order.orderItems.reduce((itemSum, item) => {
+          return itemSum + item.od_cb_it_quantity * item.foodComboSnap.fcb_snp_price
+        }, 0)
+        return sum + orderTotal + order.od_cb_price_shipping
       }, 0)
-      return sum + orderTotal + order.od_cb_price_shipping
-    }, 0)
 
-    return { totalComboRevenue: totalRevenue }
+      return { totalComboRevenue: totalRevenue }
+    } catch (error) {
+      saveLogSystem({
+        action: 'getTotalComboRevenue',
+        error: error,
+        class: 'OrderFoodComboService',
+        function: 'getTotalComboRevenue',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
   }
 
   // API 2: Combo Revenue Trends (Daily)
   async getComboRevenueTrends(dto: GetStatsDto, account: IAccount) {
-    const orders = await this.orderFoodComboRepository
-      .createQueryBuilder('order')
-      .innerJoinAndSelect('order.orderItems', 'items')
-      .innerJoinAndSelect('items.foodComboSnap', 'comboSnap')
-      .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere('order.od_cb_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
-      .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
-        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
-        end: dto.endDate ? new Date(dto.endDate) : new Date()
+    try {
+      const orders = await this.orderFoodComboRepository
+        .createQueryBuilder('order')
+        .innerJoinAndSelect('order.orderItems', 'items')
+        .innerJoinAndSelect('items.foodComboSnap', 'comboSnap')
+        .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+        .andWhere('order.od_cb_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
+        .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
+          start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+          end: dto.endDate ? new Date(dto.endDate) : new Date()
+        })
+        .getMany()
+
+      const trendsMap = new Map<string, number>()
+      orders.forEach((order) => {
+        const date = order.od_cb_created_at.toISOString().split('T')[0]
+        const orderTotal = order.orderItems.reduce((sum, item) => {
+          return sum + item.od_cb_it_quantity * item.foodComboSnap.fcb_snp_price + order.od_cb_price_shipping
+        }, 0)
+        trendsMap.set(date, (trendsMap.get(date) || 0) + orderTotal)
       })
-      .getMany()
 
-    const trendsMap = new Map<string, number>()
-    orders.forEach((order) => {
-      const date = order.od_cb_created_at.toISOString().split('T')[0]
-      const orderTotal = order.orderItems.reduce((sum, item) => {
-        return sum + item.od_cb_it_quantity * item.foodComboSnap.fcb_snp_price + order.od_cb_price_shipping
-      }, 0)
-      trendsMap.set(date, (trendsMap.get(date) || 0) + orderTotal)
-    })
+      const trends = Array.from(trendsMap.entries())
+        .map(([date, revenue]) => ({
+          date,
+          revenue
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date))
 
-    const trends = Array.from(trendsMap.entries())
-      .map(([date, revenue]) => ({
-        date,
-        revenue
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date))
-
-    return trends // Format: [{ date: '2025-04-01', revenue: 5000000 }, ...]
+      return trends // Format: [{ date: '2025-04-01', revenue: 5000000 }, ...]
+    } catch (error) {
+      saveLogSystem({
+        action: 'getComboRevenueTrends',
+        error: error,
+        class: 'OrderFoodComboService',
+        function: 'getComboRevenueTrends',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
   }
 
   // API 3: Top Combos
   async getTopCombos(dto: GetStatsDto, account: IAccount) {
-    const items = await this.orderFoodComboItemRepository
-      .createQueryBuilder('item')
-      .innerJoinAndSelect('item.orderCombo', 'order')
-      .innerJoinAndSelect('item.foodComboSnap', 'comboSnap')
-      .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere('order.od_cb_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
-      .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
-        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
-        end: dto.endDate ? new Date(dto.endDate) : new Date()
-      })
-      .groupBy('comboSnap.fcb_snp_id, comboSnap.fcb_snp_name')
-      .select([
-        'comboSnap.fcb_snp_name AS name',
-        'SUM(item.od_cb_it_quantity) AS orders',
-        'SUM(item.od_cb_it_quantity * comboSnap.fcb_snp_price) AS revenue'
-      ])
-      .orderBy('orders', 'DESC')
-      .limit(5)
-      .getRawMany()
+    try {
+      const queryBuilder = this.orderFoodComboItemRepository
+        .createQueryBuilder('item')
+        .innerJoin('item.orderCombo', 'order')
+        .innerJoin('item.foodComboSnap', 'comboSnap')
+        .innerJoin(FoodComboResEntity, 'combo', 'combo.fcb_id = comboSnap.fcb_id')
+        .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+        .andWhere('order.od_cb_status IN (:...status)', {
+          status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done']
+        });
 
-    return items.map((item) => ({
-      name: item.NAME,
-      orders: parseInt(item.ORDERS),
-      revenue: parseFloat(item.REVENUE)
-    })) // Format: [{ name: 'Combo Phở Gà', orders: 50, revenue: 2500000 }, ...]
+      if (dto.startDate || dto.endDate) {
+        queryBuilder.andWhere('order.od_cb_created_at BETWEEN :start AND :end', {
+          start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+          end: dto.endDate ? new Date(dto.endDate) : new Date(),
+        });
+      }
+
+      const items = await queryBuilder
+        .groupBy('combo.fcb_id, combo.fcb_name, combo.fcb_price, combo.fcb_status, combo.fcb_state')
+        .select([
+          'combo.fcb_id AS id',
+          'combo.fcb_name AS name',
+          'combo.fcb_price AS price',
+          'combo.fcb_status AS status',
+          'combo.fcb_state AS state',
+          'SUM(item.od_cb_it_quantity) AS orders',
+          'SUM(item.od_cb_it_quantity * comboSnap.fcb_snp_price) AS revenue',
+        ])
+        .orderBy('orders', 'DESC')
+        .limit(10)
+        .getRawMany();
+
+      const data = items.map((item) => ({
+        id: item.ID,
+        name: item.NAME,
+        price: parseFloat(item.PRICE),
+        orders: parseInt(item.ORDERS),
+        revenue: parseFloat(item.REVENUE),
+      }));
+
+      return data; // Format: [{ id: 'uuid', name: 'Combo Phở Gà', orders: 50, revenue: 2500000 }, ...]
+    } catch (error) {
+      saveLogSystem({
+        action: 'getTopCombos',
+        error: error,
+        class: 'OrderFoodComboService',
+        function: 'getTopCombos',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
   }
 
   // API 4: Recent Combo Orders
   async getRecentComboOrders(dto: GetStatsDto, account: IAccount) {
-    const orders = await this.orderFoodComboRepository
-      .createQueryBuilder('order')
-      .innerJoinAndSelect('order.orderItems', 'items')
-      .innerJoinAndSelect('items.foodComboSnap', 'comboSnap')
-      .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
-        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
-        end: dto.endDate ? new Date(dto.endDate) : new Date()
-      })
-      //loại trừ
-      .andWhere('order.od_cb_status NOT IN (:...status)', { status: ['waiting_confirm_customer', 'over_time_customer'] })
-      .orderBy('order.od_cb_created_at', 'DESC')
-      .take(5)
-      .getMany()
+    try {
+      const orders = await this.orderFoodComboRepository
+        .createQueryBuilder('order')
+        .innerJoinAndSelect('order.orderItems', 'items')
+        .innerJoinAndSelect('items.foodComboSnap', 'comboSnap')
+        .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+        .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
+          start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+          end: dto.endDate ? new Date(dto.endDate) : new Date()
+        })
+        //loại trừ
+        .andWhere('order.od_cb_status NOT IN (:...status)', { status: ['waiting_confirm_customer', 'over_time_customer'] })
+        .orderBy('order.od_cb_created_at', 'DESC')
+        .take(5)
+        .getMany()
 
-    return orders.map((order) => ({
-      id: order.od_cb_id,
-      customer: order.od_cb_user_name || 'Khách vãng lai',
-      total: order.orderItems.reduce((sum, item) => {
-        return sum + item.od_cb_it_quantity * item.foodComboSnap.fcb_snp_price + order.od_cb_price_shipping
-      }, 0),
-      status: {
-        waiting_confirm_customer: 'Chờ xác nhận khách hàng',
-        over_time_customer: 'Quá hạn xác nhận',
-        waiting_confirm_restaurant: 'Chờ nhà hàng xác nhận',
-        waiting_shipping: 'Chờ giao hàng',
-        shipping: 'Đang giao hàng',
-        delivered_customer: 'Đã giao hàng',
-        received_customer: 'Hoàn thành',
-        cancel_customer: 'Khách hủy',
-        cancel_restaurant: 'Nhà hàng hủy',
-        complaint: 'Khiếu nại',
-        complaint_done: 'Khiếu nại xong'
-      }[order.od_cb_status]
-    })) // Format: [{ id: 'uuid', customer: 'Nguyễn Văn A', total: 300000, status: 'Hoàn thành' }, ...]
-  }
-
-  // API 5: Order Status Distribution
-  async getOrderStatusDistribution(dto: GetStatsDto, account: IAccount) {
-    const statuses = await this.orderFoodComboRepository
-      .createQueryBuilder('order')
-      .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
-        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
-        end: dto.endDate ? new Date(dto.endDate) : new Date()
-      })
-      .groupBy('order.od_cb_status')
-      .select(['order.od_cb_status AS status', 'COUNT(*) AS count'])
-      .getRawMany()
-
-    const data = statuses.map((s) => ({
-      type:
-        {
+      return orders.map((order) => ({
+        id: order.od_cb_id,
+        customer: order.od_cb_user_name || 'Khách vãng lai',
+        total: order.orderItems.reduce((sum, item) => {
+          return sum + item.od_cb_it_quantity * item.foodComboSnap.fcb_snp_price + order.od_cb_price_shipping
+        }, 0),
+        status: {
           waiting_confirm_customer: 'Chờ xác nhận khách hàng',
           over_time_customer: 'Quá hạn xác nhận',
           waiting_confirm_restaurant: 'Chờ nhà hàng xác nhận',
           waiting_shipping: 'Chờ giao hàng',
           shipping: 'Đang giao hàng',
           delivered_customer: 'Đã giao hàng',
-          customer_unreachable: 'Khách hàng không liên lạc được',
           received_customer: 'Hoàn thành',
           cancel_customer: 'Khách hủy',
           cancel_restaurant: 'Nhà hàng hủy',
           complaint: 'Khiếu nại',
           complaint_done: 'Khiếu nại xong'
-        }[s.STATUS] || s.STATUS,
-      value: parseInt(s.COUNT)
-    }))
+        }[order.od_cb_status]
+      })) // Format: [{ id: 'uuid', customer: 'Nguyễn Văn A', total: 300000, status: 'Hoàn thành' }, ...]
+    } catch (error) {
+      saveLogSystem({
+        action: 'getRecentComboOrders',
+        error: error,
+        class: 'OrderFoodComboService',
+        function: 'getRecentComboOrders',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 
-    return data
+  // API 5: Order Status Distribution
+  async getOrderStatusDistribution(dto: GetStatsDto, account: IAccount) {
+    try {
+      const statuses = await this.orderFoodComboRepository
+        .createQueryBuilder('order')
+        .where('order.od_cb_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+        .andWhere(dto.startDate || dto.endDate ? 'order.od_cb_created_at BETWEEN :start AND :end' : '1=1', {
+          start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+          end: dto.endDate ? new Date(dto.endDate) : new Date()
+        })
+        .groupBy('order.od_cb_status')
+        .select(['order.od_cb_status AS status', 'COUNT(*) AS count'])
+        .getRawMany()
+
+      const data = statuses.map((s) => ({
+        type:
+          {
+            waiting_confirm_customer: 'Chờ xác nhận khách hàng',
+            over_time_customer: 'Quá hạn xác nhận',
+            waiting_confirm_restaurant: 'Chờ nhà hàng xác nhận',
+            waiting_shipping: 'Chờ giao hàng',
+            shipping: 'Đang giao hàng',
+            delivered_customer: 'Đã giao hàng',
+            customer_unreachable: 'Khách hàng không liên lạc được',
+            received_customer: 'Hoàn thành',
+            cancel_customer: 'Khách hủy',
+            cancel_restaurant: 'Nhà hàng hủy',
+            complaint: 'Khiếu nại',
+            complaint_done: 'Khiếu nại xong'
+          }[s.STATUS] || s.STATUS,
+        value: parseInt(s.COUNT)
+      }))
+
+      return data
+    } catch (error) {
+      saveLogSystem({
+        action: 'getOrderStatusDistribution',
+        error: error,
+        class: 'OrderFoodComboService',
+        function: 'getOrderStatusDistribution',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
   }
 }

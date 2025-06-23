@@ -330,4 +330,24 @@ export class SpecialOffersService {
       throw new ServerErrorDefault(error)
     }
   }
+
+  async getTotalSpecialOffer(account: IAccount): Promise<{
+    totalRevenue: number
+  }> {
+    try {
+      const result = await this.specialOfferRepo.totalSpecialOffer(account.account_restaurant_id)
+      return { totalRevenue: result }
+    } catch (error) {
+      saveLogSystem({
+        action: 'getTotalSpecialOffer',
+        class: 'SpecialOffersService',
+        function: 'getTotalSpecialOffer',
+        message: error.message,
+        time: new Date(),
+        error: error,
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
 }

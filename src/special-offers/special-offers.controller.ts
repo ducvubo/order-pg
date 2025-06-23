@@ -96,6 +96,15 @@ export class SpecialOffersController {
     return this.specialOffersService.restoreSpecialOffer(spo_id, account)
   }
 
+  @Get('total-special-offer')
+  @UseGuards(AccountAuthGuard)
+  @ResponseMessage('Lấy tổng doanh thu thành công')
+  async getTotalSpecialOffer(@Acccount() account: IAccount): Promise<{
+    totalRevenue: number
+  }> {
+    return this.specialOffersService.getTotalSpecialOffer(account)
+  }
+
   @Delete(':spo_id')
   @ResponseMessage('Xóa ưu đãi thành công')
   @UseGuards(AccountAuthGuard)

@@ -1326,153 +1326,173 @@ export class OrderFoodService implements OnModuleInit {
   }
 
   async getTotalRevenue(dto: GetStatsDto, account: IAccount) {
-    const orders = await this.orderFoodRepository
-      .createQueryBuilder('order')
-      .innerJoinAndSelect('order.orderItems', 'items')
-      .innerJoinAndSelect('items.foodSnap', 'foodSnap')
-      .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere('order.od_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
-      .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
-        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
-        end: dto.endDate ? new Date(dto.endDate) : new Date()
-      })
-      .getMany()
+    try {
+      const orders = await this.orderFoodRepository
+        .createQueryBuilder('order')
+        .innerJoinAndSelect('order.orderItems', 'items')
+        .innerJoinAndSelect('items.foodSnap', 'foodSnap')
+        .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+        .andWhere('order.od_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
+        .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
+          start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+          end: dto.endDate ? new Date(dto.endDate) : new Date()
+        })
+        .getMany()
 
-    const totalRevenue = orders.reduce((sum, order) => {
-      const orderTotal = order.orderItems.reduce((itemSum, item) => {
-        return itemSum + item.od_it_quantity * item.foodSnap.fsnp_price
+      const totalRevenue = orders.reduce((sum, order) => {
+        const orderTotal = order.orderItems.reduce((itemSum, item) => {
+          return itemSum + item.od_it_quantity * item.foodSnap.fsnp_price
+        }, 0)
+        return sum + orderTotal + order.od_price_shipping
       }, 0)
-      return sum + orderTotal + order.od_price_shipping
-    }, 0)
 
-    return { totalRevenue }
+      return { totalRevenue }
+    } catch (error) {
+      saveLogSystem({
+        action: 'getTotalRevenue',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'getTotalRevenue',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
   }
 
   // API 2: Revenue Trends (Daily)
   async getRevenueTrends(dto: GetStatsDto, account: IAccount) {
-    const orders = await this.orderFoodRepository
-      .createQueryBuilder('order')
-      .innerJoinAndSelect('order.orderItems', 'items')
-      .innerJoinAndSelect('items.foodSnap', 'foodSnap')
-      .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
-        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
-        end: dto.endDate ? new Date(dto.endDate) : new Date()
+    try {
+      const orders = await this.orderFoodRepository
+        .createQueryBuilder('order')
+        .innerJoinAndSelect('order.orderItems', 'items')
+        .innerJoinAndSelect('items.foodSnap', 'foodSnap')
+        .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+        .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
+          start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+          end: dto.endDate ? new Date(dto.endDate) : new Date()
+        })
+        .andWhere('order.od_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
+        .getMany()
+
+      const trendsMap = new Map<string, number>()
+      orders.forEach((order) => {
+        const date = order.od_created_at.toISOString().split('T')[0]
+        const orderTotal = order.orderItems.reduce((sum, item) => {
+          return sum + item.od_it_quantity * item.foodSnap.fsnp_price + order.od_price_shipping
+        }, 0)
+        trendsMap.set(date, (trendsMap.get(date) || 0) + orderTotal)
       })
-      .andWhere('order.od_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
-      .getMany()
 
-    const trendsMap = new Map<string, number>()
-    orders.forEach((order) => {
-      const date = order.od_created_at.toISOString().split('T')[0]
-      const orderTotal = order.orderItems.reduce((sum, item) => {
-        return sum + item.od_it_quantity * item.foodSnap.fsnp_price + order.od_price_shipping
-      }, 0)
-      trendsMap.set(date, (trendsMap.get(date) || 0) + orderTotal)
-    })
+      const trends = Array.from(trendsMap.entries())
+        .map(([date, revenue]) => ({
+          date,
+          revenue
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date))
 
-    const trends = Array.from(trendsMap.entries())
-      .map(([date, revenue]) => ({
-        date,
-        revenue
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date))
-
-    return trends // Format: [{ date: '2025-04-01', revenue: 12000000 }, ...]
+      return trends // Format: [{ date: '2025-04-01', revenue: 12000000 }, ...]
+    } catch (error) {
+      saveLogSystem({
+        action: 'getRevenueTrends',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'getRevenueTrends',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
   }
 
   // API 3: Top Online Foods
   async getTopFoods(dto: GetStatsDto, account: IAccount) {
-    const items = await this.orderFoodItemRepository
-      .createQueryBuilder('item')
-      .innerJoin('item.order', 'order')
-      .innerJoin('item.foodSnap', 'foodSnap')
-      .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
-        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
-        end: dto.endDate ? new Date(dto.endDate) : new Date()
-      })
-      .andWhere('order.od_status IN (:...status)', { status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done'] })
-      .groupBy('foodSnap.fsnp_id, foodSnap.fsnp_name')
-      .select([
-        'foodSnap.fsnp_name AS name',
-        'SUM(item.od_it_quantity) AS orders',
-        'SUM(item.od_it_quantity * foodSnap.fsnp_price) AS revenue'
-      ])
-      .orderBy('orders', 'DESC')
-      .limit(5)
-      .getRawMany()
+    try {
+      const queryBuilder = this.orderFoodItemRepository
+        .createQueryBuilder('item')
+        .innerJoin('item.order', 'order')
+        .innerJoin('item.foodSnap', 'foodSnap')
+        .innerJoin(FoodRestaurantEntity, 'food', 'food.food_id = foodSnap.food_id')
+        .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+        .andWhere('order.od_status IN (:...status)', {
+          status: ['delivered_customer', 'received_customer', 'complaint', 'complaint_done']
+        });
 
-    const data = items.map((item) => ({
-      name: item.NAME,
-      orders: parseInt(item.ORDERS),
-      revenue: parseFloat(item.REVENUE)
-    })) // Format: [{ name: 'Phở bò online', orders: 120, revenue: 3600000 }, ...]
-    return data
+      if (dto.startDate || dto.endDate) {
+        queryBuilder.andWhere('order.od_created_at BETWEEN :start AND :end', {
+          start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+          end: dto.endDate ? new Date(dto.endDate) : new Date(),
+        });
+      }
+
+      const items = await queryBuilder
+        .groupBy('food.food_id, food.food_name, food.food_price, food.food_status, food.food_state')
+        .select([
+          'food.food_id AS id',
+          'food.food_name AS name',
+          'food.food_price AS price',
+          'food.food_status AS status',
+          'food.food_state AS state',
+          'SUM(item.od_it_quantity) AS orders',
+          'SUM(item.od_it_quantity * foodSnap.fsnp_price) AS revenue',
+        ])
+        .orderBy('orders', 'DESC')
+        .limit(10)
+        .getRawMany();
+
+      const data = items.map((item) => ({
+        id: item.ID,
+        name: item.NAME,
+        orders: parseInt(item.ORDERS),
+        revenue: parseFloat(item.REVENUE),
+      }));
+
+      return data;
+    } catch (error) {
+      saveLogSystem({
+        action: 'getTopFoods',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'getTopFoods',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
   }
 
   // API 4: Recent Online Orders
   async getRecentOrders(dto: GetStatsDto, account: IAccount) {
-    const orders = await this.orderFoodRepository
-      .createQueryBuilder('order')
-      .innerJoinAndSelect('order.orderItems', 'items')
-      .innerJoinAndSelect('items.foodSnap', 'foodSnap')
-      .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
-        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
-        end: dto.endDate ? new Date(dto.endDate) : new Date()
-      })
-      .andWhere('order.od_status NOT IN (:...status)', { status: ['waiting_confirm_customer', 'over_time_customer'] })
-      .orderBy('order.od_created_at', 'DESC')
-      .take(5)
-      .getMany()
+    try {
+      const orders = await this.orderFoodRepository
+        .createQueryBuilder('order')
+        .innerJoinAndSelect('order.orderItems', 'items')
+        .innerJoinAndSelect('items.foodSnap', 'foodSnap')
+        .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+        .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
+          start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+          end: dto.endDate ? new Date(dto.endDate) : new Date()
+        })
+        .andWhere('order.od_status NOT IN (:...status)', { status: ['waiting_confirm_customer', 'over_time_customer'] })
+        .orderBy('order.od_created_at', 'DESC')
+        .take(5)
+        .getMany()
 
-    const data = orders.map((order) => ({
-      id: order.od_id,
-      customer: order.od_user_name || 'Khách vãng lai',
-      total: order.orderItems.reduce((sum, item) => {
-        return sum + item.od_it_quantity * item.foodSnap.fsnp_price + order.od_price_shipping
-      }, 0),
-      status: {
-        waiting_confirm_customer: 'Chờ xác nhận khách hàng',
-        over_time_customer: 'Quá hạn xác nhận',
-        waiting_confirm_restaurant: 'Chờ nhà hàng xác nhận',
-        customer_unreachable: 'Khách không liên lạc được',
-        waiting_shipping: 'Chờ giao hàng',
-        shipping: 'Đang giao hàng',
-        delivered_customer: 'Đã giao hàng',
-        received_customer: 'Hoàn thành',
-        cancel_customer: 'Khách hủy',
-        cancel_restaurant: 'Nhà hàng hủy',
-        complaint: 'Khiếu nại',
-        complaint_done: 'Khiếu nại xong'
-      }[order.od_status]
-    }))
-
-    return data
-  }
-
-  // API 5: Order Status Distribution
-  async getOrderStatusDistribution(dto: GetStatsDto, account: IAccount) {
-    const statuses = await this.orderFoodRepository
-      .createQueryBuilder('order')
-      .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
-      .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
-        start: dto.startDate ? new Date(dto.startDate) : new Date(0),
-        end: dto.endDate ? new Date(dto.endDate) : new Date()
-      })
-      .groupBy('order.od_status')
-      .select(['order.od_status AS status', 'COUNT(*) AS count'])
-      .getRawMany()
-
-    const data = statuses.map((s) => ({
-      type:
-        {
+      const data = orders.map((order) => ({
+        id: order.od_id,
+        customer: order.od_user_name || 'Khách vãng lai',
+        total: order.orderItems.reduce((sum, item) => {
+          return sum + item.od_it_quantity * item.foodSnap.fsnp_price + order.od_price_shipping
+        }, 0),
+        status: {
           waiting_confirm_customer: 'Chờ xác nhận khách hàng',
           over_time_customer: 'Quá hạn xác nhận',
           waiting_confirm_restaurant: 'Chờ nhà hàng xác nhận',
+          customer_unreachable: 'Khách không liên lạc được',
           waiting_shipping: 'Chờ giao hàng',
-          customer_unreachable: 'Khách hàng không liên lạc được',
           shipping: 'Đang giao hàng',
           delivered_customer: 'Đã giao hàng',
           received_customer: 'Hoàn thành',
@@ -1480,10 +1500,69 @@ export class OrderFoodService implements OnModuleInit {
           cancel_restaurant: 'Nhà hàng hủy',
           complaint: 'Khiếu nại',
           complaint_done: 'Khiếu nại xong'
-        }[s.STATUS] || s.STATUS,
-      value: parseInt(s.COUNT)
-    }))
+        }[order.od_status]
+      }))
 
-    return data
+      return data
+    } catch (error) {
+      saveLogSystem({
+        action: 'getRecentOrders',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'getRecentOrders',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
+  }
+
+  // API 5: Order Status Distribution
+  async getOrderStatusDistribution(dto: GetStatsDto, account: IAccount) {
+    try {
+      const statuses = await this.orderFoodRepository
+        .createQueryBuilder('order')
+        .where('order.od_res_id = :restaurantId', { restaurantId: account.account_restaurant_id })
+        .andWhere(dto.startDate || dto.endDate ? 'order.od_created_at BETWEEN :start AND :end' : '1=1', {
+          start: dto.startDate ? new Date(dto.startDate) : new Date(0),
+          end: dto.endDate ? new Date(dto.endDate) : new Date()
+        })
+        .groupBy('order.od_status')
+        .select(['order.od_status AS status', 'COUNT(*) AS count'])
+        .getRawMany()
+
+      const data = statuses.map((s) => ({
+        type:
+          {
+            waiting_confirm_customer: 'Chờ xác nhận khách hàng',
+            over_time_customer: 'Quá hạn xác nhận',
+            waiting_confirm_restaurant: 'Chờ nhà hàng xác nhận',
+            waiting_shipping: 'Chờ giao hàng',
+            customer_unreachable: 'Khách hàng không liên lạc được',
+            shipping: 'Đang giao hàng',
+            delivered_customer: 'Đã giao hàng',
+            received_customer: 'Hoàn thành',
+            cancel_customer: 'Khách hủy',
+            cancel_restaurant: 'Nhà hàng hủy',
+            complaint: 'Khiếu nại',
+            complaint_done: 'Khiếu nại xong'
+          }[s.STATUS] || s.STATUS,
+        value: parseInt(s.COUNT)
+      }))
+
+      return data
+    } catch (error) {
+      saveLogSystem({
+        action: 'getOrderStatusDistribution',
+        error: error,
+        class: 'OrderFoodService',
+        function: 'getOrderStatusDistribution',
+        message: error.message,
+        time: new Date(),
+        type: 'error'
+      })
+      throw new ServerErrorDefault(error)
+    }
   }
 }
