@@ -12,11 +12,11 @@ const handleEventConnection = async ({ connectionMinio }: { connectionMinio: Cli
 
 export const initMinio = () => {
   const instanceMinio = new Client({
-    endPoint: '160.187.229.179',
-    port: 9000,
+    endPoint: process.env.MINIO_ENDPOINT,
+    port: Number(process.env.MINIO_PORT),
     useSSL: false,
-    accessKey: '5NgOHWoz4BXqMFX0hw2y',
-    secretKey: 'NATQZqRLdzwKGQMAMblBrqG8nokT2WlltY0EYRqh'
+    accessKey: process.env.MINIO_ACCESS_KEY,
+    secretKey: process.env.MINIO_SECRET_KEY
   })
 
 
